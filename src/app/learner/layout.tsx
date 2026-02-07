@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, BookOpen, Trophy, User, LogOut, Compass } from 'lucide-react';
+import { GraduationCap, BookOpen, Trophy, User, LogOut, Compass, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -16,23 +16,28 @@ import {
 } from '@/components/shared/dialog';
 import { Button } from '@/components/shared/button';
 
-const navItems = [
-  { href: '/learner/my-courses', label: 'My Courses', icon: BookOpen },
-  { href: '/learner/explore', label: 'Explore', icon: Compass },
-  { href: '/learner/achievements', label: 'Achievements', icon: Trophy },
-  { href: '/learner/profile', label: 'Profile', icon: User },
+const allNavItems = [
+  { href: '/learner/my-courses', label: 'My Courses', icon: BookOpen, requiresAuth: true },
+  { href: '/learner/explore', label: 'Explore', icon: Compass, requiresAuth: false },
+  { href: '/learner/achievements', label: 'Achievements', icon: Trophy, requiresAuth: true },
+  { href: '/learner/profile', label: 'Profile', icon: User, requiresAuth: true },
 ];
 
 export default function LearnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { isLoggedIn, isGuest, guestName, logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
+
+  // Show only Explore for unauthenticated/guest users
+  const navItems = isLoggedIn
+    ? allNavItems
+    : allNavItems.filter((item) => !item.requiresAuth);
 
   // Hide the nav on the full-screen player (when isPlayerOpen would take over)
   const isCoursePage = /^\/learner\/courses\//.test(pathname);
@@ -70,13 +75,32 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
               })}
             </nav>
 
-            <button
-              onClick={() => setShowLogoutDialog(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-              Exit
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Show guest name badge */}
+              {isGuest && guestName && (
+                <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {guestName}
+                </span>
+              )}
+
+              {isLoggedIn ? (
+                <button
+                  onClick={() => setShowLogoutDialog(true)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Exit
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-muted"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </Link>
+              )}
+            </div>
           </div>
         </header>
       )}

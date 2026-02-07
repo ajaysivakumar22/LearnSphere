@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sun, Moon, Monitor, Bell, Globe, Shield, User, Camera, HelpCircle,
@@ -36,6 +36,35 @@ export default function AdminSettingsPage() {
   const [enrollmentNotifications, setEnrollmentNotifications] = useState(true);
   const [completionNotifications, setCompletionNotifications] = useState(false);
   const [weeklyDigest, setWeeklyDigest] = useState(true);
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+
+  // Load notification preferences from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('learnsphere-notifications');
+      if (saved) {
+        const prefs = JSON.parse(saved);
+        if (prefs.email_notifications !== undefined) setEmailNotifications(prefs.email_notifications);
+        if (prefs.new_enrollments !== undefined) setEnrollmentNotifications(prefs.new_enrollments);
+        if (prefs.course_completions !== undefined) setCompletionNotifications(prefs.course_completions);
+        if (prefs.weekly_digest !== undefined) setWeeklyDigest(prefs.weekly_digest);
+      }
+    } catch {}
+    setNotificationsLoaded(true);
+  }, []);
+
+  // Save notification preferences to localStorage on change
+  useEffect(() => {
+    if (!notificationsLoaded) return;
+    try {
+      localStorage.setItem('learnsphere-notifications', JSON.stringify({
+        email_notifications: emailNotifications,
+        new_enrollments: enrollmentNotifications,
+        course_completions: completionNotifications,
+        weekly_digest: weeklyDigest,
+      }));
+    } catch {}
+  }, [notificationsLoaded, emailNotifications, enrollmentNotifications, completionNotifications, weeklyDigest]);
 
   // Video preferences
   const [autoplay, setAutoplay] = useState(true);

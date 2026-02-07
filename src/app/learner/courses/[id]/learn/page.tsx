@@ -14,6 +14,7 @@ import { Progress } from '@/components/shared/progress';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { markLearningActivity } from '@/lib/useStreak';
+import { useAuth } from '@/lib/auth-context';
 
 /* ======================================================================
    TYPES
@@ -205,6 +206,7 @@ function AddReviewDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit:
 export default function LearningPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const router = useRouter();
+  const { isLoggedIn } = useAuth();
 
   /* ---- State ---- */
   const [contents, setContents] = useState<CourseContent[]>(initialContents);
@@ -227,8 +229,9 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviews, setReviews] = useState<Review[]>(sampleReviews);
 
-  // Load course completion state from localStorage
+  // Load course completion state from localStorage (only for authenticated users)
   useEffect(() => {
+    if (!isLoggedIn) return;
     try {
       const completedCourses = JSON.parse(localStorage.getItem('completedCourses') || '[]');
       if (completedCourses.includes(resolvedParams.id)) {
@@ -248,7 +251,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
         }
       }
     } catch {}
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, isLoggedIn]);
 
   /* ---- Computed ---- */
   const currentContent = contents[currentIdx];
@@ -287,6 +290,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
   };
 
   const markComplete = useCallback((idx: number) => {
+    if (!isLoggedIn) return; // Guests cannot track progress
     setContents((prev) => {
       const updated = prev.map((c, i) =>
         i === idx ? { ...c, status: 'completed' as const } : c
@@ -307,7 +311,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
       return updated;
     });
     markLearningActivity();
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, isLoggedIn]);
 
   const goNextContent = () => {
     markComplete(currentIdx);
@@ -336,6 +340,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
   };
 
   const handleCompleteCourse = () => {
+    if (!isLoggedIn) return; // Guests cannot complete courses
     setCourseCompleted(true);
     setIsPlayerOpen(false);
     markLearningActivity();
@@ -497,9 +502,18 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                 <h2 className="mb-2 text-2xl font-bold text-white">Quiz</h2>
                 <p className="mb-2 text-gray-400">{quizQuestions.length} Questions</p>
                 <p className="mb-6 text-sm text-gray-500">Multiple attempts are allowed</p>
-                <Button variant="odoo" className="px-8" onClick={() => setQuizStarted(true)}>
-                  Start Quiz
-                </Button>
+                {isLoggedIn ? (
+                  <Button variant="odoo" className="px-8" onClick={() => setQuizStarted(true)}>
+                    Start Quiz
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-yellow-400">Sign in to attempt quizzes and earn points</p>
+                    <Link href="/login">
+                      <Button variant="odoo" className="px-8">Sign In to Start</Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 
@@ -559,7 +573,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
 
           {/* Bottom bar */}
           <div className="flex items-center justify-end border-t border-gray-700 bg-gray-800 px-6 py-4">
-            {allCompleted ? (
+            {allCompleted && isLoggedIn ? (
               <button
                 onClick={handleCompleteCourse}
                 className="rounded-lg bg-green-600 px-8 py-3 font-semibold text-white hover:bg-green-700"
@@ -646,6 +660,21 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
             <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{courseInfo.description}</p>
           </div>
         </div>
+
+        {/* Guest Banner */}
+        {!isLoggedIn && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/20">
+              <User className="h-5 w-5 text-yellow-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-yellow-600 dark:text-yellow-400">Browsing as Guest</p>
+              <p className="text-sm text-muted-foreground">
+                <Link href="/login" className="text-primary hover:underline">Sign in</Link> to track progress, attempt quizzes, and earn points.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Course Completed Banner */}
         {courseCompleted && (
