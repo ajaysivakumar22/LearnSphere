@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ClerkProviderWrapper } from '@/components/shared/clerk-provider-wrapper'
 import { Toaster } from '@/components/shared/toaster'
 import { ThemeProvider } from '@/lib/theme-context'
 import { AuthProvider } from '@/lib/auth-context'
@@ -21,14 +22,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider>
-          <AuthProvider>
-            <CourseStoreProvider>
-              {children}
-              <Toaster />
-            </CourseStoreProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <ClerkProviderWrapper>
+          <ThemeProvider>
+            <AuthProvider>
+              <CourseStoreProvider>
+                {children}
+                <Toaster />
+              </CourseStoreProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </ClerkProviderWrapper>
       </body>
     </html>
   )

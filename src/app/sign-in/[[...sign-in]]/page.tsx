@@ -1,0 +1,19 @@
+'use client';
+
+import { SignIn } from '@clerk/nextjs';
+
+export default function SignInPage() {
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center px-4"
+      style={{ backgroundColor: '#0f0f0f' }}
+    >
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        signUpUrl="/sign-up"
+        fallbackRedirectUrl="/learner/my-courses"
+      />
+    </div>
+  );
+}
