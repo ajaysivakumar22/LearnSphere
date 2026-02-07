@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/shared/button';
-import { Input } from '@/components/shared/input';
-import { Label } from '@/components/shared/label';
+import { GraduationCap, Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 function validatePassword(password: string): string[] {
   const errors: string[] = [];
@@ -36,9 +33,7 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [touched, setTouched] = useState({ name: false, email: false, password: false, confirmPassword: false });
 
-  // Simulated existing emails (in production this checks the database)
   const existingEmails = ['admin@learnsphere.com', 'instructor@learnsphere.com', 'learner@learnsphere.com'];
-
   const passwordErrors = validatePassword(password);
   const isPasswordValid = passwordErrors.length === 0;
   const doPasswordsMatch = password === confirmPassword && confirmPassword.length > 0;
@@ -49,71 +44,55 @@ export default function SignUpPage() {
     setError('');
     setTouched({ name: true, email: true, password: true, confirmPassword: true });
 
-    if (!name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-
-    if (!email.trim()) {
-      setError('Please enter your email address.');
-      return;
-    }
-
-    if (isEmailDuplicate) {
-      setError('This email is already registered. Please use a different email or sign in.');
-      return;
-    }
-
-    if (!isPasswordValid) {
-      setError('Please fix the password requirements below.');
-      return;
-    }
-
-    if (!doPasswordsMatch) {
-      setError('Passwords do not match.');
-      return;
-    }
+    if (!name.trim()) { setError('Please enter your name.'); return; }
+    if (!email.trim()) { setError('Please enter your email address.'); return; }
+    if (isEmailDuplicate) { setError('This email is already registered.'); return; }
+    if (!isPasswordValid) { setError('Please fix the password requirements below.'); return; }
+    if (!doPasswordsMatch) { setError('Passwords do not match.'); return; }
 
     setIsLoading(true);
-
-    // Simulate API call
     await new Promise((r) => setTimeout(r, 1000));
-
-    // Redirect to login after successful signup
     router.push('/login');
   };
 
+  const inputStyle = {
+    backgroundColor: '#111',
+    borderColor: '#333',
+    color: '#f1f1f1',
+  };
+
+  const focusInput = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = '#7c3aed';
+    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(124,58,237,0.2)';
+  };
+
+  const blurInput = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = '#333';
+    e.currentTarget.style.boxShadow = 'none';
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 px-4 py-8">
-      {/* Back to Home */}
-      <Link
-        href="/"
-        className="fixed left-6 top-6 rounded-lg p-2 hover:bg-white/80"
-        title="Back to home"
-      >
-        <ArrowLeft className="h-5 w-5 text-gray-700" />
-      </Link>
+    <div className="flex min-h-screen items-center justify-center px-4 py-8"
+      style={{ backgroundColor: '#0f0f0f' }}>
 
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-block">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600">
-              <GraduationCap className="h-10 w-10 text-white" />
-            </div>
-          </Link>
-          <h1 className="mb-1 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-3xl font-bold text-transparent">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-violet-500 shadow-lg shadow-purple-500/25">
+            <GraduationCap className="h-10 w-10 text-white" />
+          </div>
+          <h1 className="mb-2 text-4xl font-bold tracking-tight" style={{ color: '#f1f1f1' }}>
             LearnSphere
           </h1>
-          <p className="text-sm text-gray-500">Create your account</p>
+          <p className="text-sm" style={{ color: '#888' }}>Create your account</p>
         </div>
 
-        {/* Sign Up Form */}
-        <div className="rounded-xl border bg-white p-8 shadow-lg">
-          <form onSubmit={handleSignUp} className="space-y-5">
-            {/* Error Message */}
+        {/* Card */}
+        <div className="rounded-2xl border p-8 shadow-2xl" style={{ backgroundColor: '#1a1a1a', borderColor: '#2a2a2a' }}>
+          <form onSubmit={handleSignUp} className="space-y-4">
             {error && (
-              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm"
+                style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -121,82 +100,60 @@ export default function SignUpPage() {
 
             {/* Name */}
             <div>
-              <Label htmlFor="name" className="mb-2 block">
-                Enter Name
-              </Label>
+              <label className="mb-2 block text-sm font-medium" style={{ color: '#ccc' }}>Full Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setError('');
-                  }}
-                  onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#666' }} />
+                <input
+                  type="text" value={name}
+                  onChange={(e) => { setName(e.target.value); setError(''); }}
+                  onBlur={(e) => { setTouched((t) => ({ ...t, name: true })); blurInput(e); }}
+                  onFocus={focusInput}
                   placeholder="Enter your full name"
-                  className="pl-10"
+                  className="h-11 w-full rounded-lg border pl-10 pr-4 text-sm outline-none transition-all placeholder:text-[#555]"
+                  style={inputStyle}
                 />
               </div>
-              {touched.name && !name.trim() && (
-                <p className="mt-1 text-xs text-red-500">Name is required</p>
-              )}
+              {touched.name && !name.trim() && <p className="mt-1 text-xs" style={{ color: '#f87171' }}>Name is required</p>}
             </div>
 
             {/* Email */}
             <div>
-              <Label htmlFor="email" className="mb-2 block">
-                Enter Email Id
-              </Label>
+              <label className="mb-2 block text-sm font-medium" style={{ color: '#ccc' }}>Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError('');
-                  }}
-                  onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#666' }} />
+                <input
+                  type="email" value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                  onBlur={(e) => { setTouched((t) => ({ ...t, email: true })); blurInput(e); }}
+                  onFocus={focusInput}
                   placeholder="Enter your email address"
-                  className="pl-10"
+                  className="h-11 w-full rounded-lg border pl-10 pr-4 text-sm outline-none transition-all placeholder:text-[#555]"
+                  style={inputStyle}
                 />
               </div>
-              {touched.email && email && isEmailDuplicate && (
-                <p className="mt-1 text-xs text-red-500">This email is already registered</p>
-              )}
+              {touched.email && email && isEmailDuplicate && <p className="mt-1 text-xs" style={{ color: '#f87171' }}>This email is already registered</p>}
             </div>
 
             {/* Password */}
             <div>
-              <Label htmlFor="password" className="mb-2 block">
-                Enter Password
-              </Label>
+              <label className="mb-2 block text-sm font-medium" style={{ color: '#ccc' }}>Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setError('');
-                  }}
-                  onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#666' }} />
+                <input
+                  type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  onBlur={(e) => { setTouched((t) => ({ ...t, password: true })); blurInput(e); }}
+                  onFocus={focusInput}
                   placeholder="Create a password"
-                  className="pl-10 pr-10"
+                  className="h-11 w-full rounded-lg border pl-10 pr-10 text-sm outline-none transition-all placeholder:text-[#555]"
+                  style={inputStyle}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{ color: '#666' }}>
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {/* Password requirements */}
               {touched.password && password && (
                 <div className="mt-2 space-y-1">
                   {PASSWORD_RULES.map((rule) => {
@@ -204,13 +161,11 @@ export default function SignUpPage() {
                     return (
                       <div key={rule.label} className="flex items-center gap-1.5 text-xs">
                         {passed ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                          <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#22c55e' }} />
                         ) : (
-                          <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+                          <AlertCircle className="h-3.5 w-3.5" style={{ color: '#555' }} />
                         )}
-                        <span className={passed ? 'text-green-600' : 'text-gray-500'}>
-                          {rule.label}
-                        </span>
+                        <span style={{ color: passed ? '#22c55e' : '#666' }}>{rule.label}</span>
                       </div>
                     );
                   })}
@@ -220,55 +175,51 @@ export default function SignUpPage() {
 
             {/* Confirm Password */}
             <div>
-              <Label htmlFor="confirmPassword" className="mb-2 block">
-                Re-Enter Password
-              </Label>
+              <label className="mb-2 block text-sm font-medium" style={{ color: '#ccc' }}>Confirm Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setError('');
-                  }}
-                  onBlur={() => setTouched((t) => ({ ...t, confirmPassword: true }))}
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: '#666' }} />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
+                  onBlur={(e) => { setTouched((t) => ({ ...t, confirmPassword: true })); blurInput(e); }}
+                  onFocus={focusInput}
                   placeholder="Re-enter your password"
-                  className="pl-10 pr-10"
+                  className="h-11 w-full rounded-lg border pl-10 pr-10 text-sm outline-none transition-all placeholder:text-[#555]"
+                  style={inputStyle}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{ color: '#666' }}>
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {touched.confirmPassword && confirmPassword && !doPasswordsMatch && (
-                <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+                <p className="mt-1 text-xs" style={{ color: '#f87171' }}>Passwords do not match</p>
               )}
               {touched.confirmPassword && doPasswordsMatch && (
-                <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                <p className="mt-1 flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
                   <CheckCircle2 className="h-3.5 w-3.5" /> Passwords match
                 </p>
               )}
             </div>
 
-            {/* Sign Up Button */}
-            <Button
-              type="submit"
-              variant="odoo"
-              className="w-full"
-              disabled={isLoading}
+            {/* Submit */}
+            <button
+              type="submit" disabled={isLoading}
+              className="h-11 w-full cursor-pointer rounded-lg text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
+              onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = 'linear-gradient(135deg, #6d28d9, #9333ea)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, #7c3aed, #a855f7)'; }}
             >
-              {isLoading ? 'Creating account...' : 'SIGN UP'}
-            </Button>
+              {isLoading ? 'Creating account...' : 'Sign Up'}
+            </button>
 
-            {/* Link to Login */}
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-center text-sm" style={{ color: '#666' }}>
               Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="font-medium transition-colors"
+                style={{ color: '#a78bfa' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#c4b5fd')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#a78bfa')}>
                 Sign In
               </Link>
             </p>

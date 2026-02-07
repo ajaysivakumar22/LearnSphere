@@ -14,73 +14,22 @@ import {
   DialogFooter,
 } from '@/components/shared/dialog';
 import { Input } from '@/components/shared/input';
+import { useCourseStore, type Course } from '@/lib/course-store';
 
-interface Course {
-  id: string;
-  title: string;
-  tags: string[];
-  viewsCount: number;
-  contentsCount: number;
-  duration: string;
-  isPublished: boolean;
-}
-
-const initialCourses: Course[] = [
-  {
-    id: '1',
-    title: 'Introduction to Odoo AI',
-    tags: ['AI', 'Odoo', 'Automation'],
-    viewsCount: 15,
-    contentsCount: 6,
-    duration: '25:30',
-    isPublished: true,
-  },
-  {
-    id: '2',
-    title: 'Basics of Odoo CRM',
-    tags: ['CRM', 'Sales', 'Odoo'],
-    viewsCount: 20,
-    contentsCount: 8,
-    duration: '20:35',
-    isPublished: true,
-  },
-  {
-    id: '3',
-    title: 'About Odoo Courses',
-    tags: ['eLearning', 'Odoo', 'Courses'],
-    viewsCount: 10,
-    contentsCount: 5,
-    duration: '10:20',
-    isPublished: true,
-  },
-  {
-    id: '4',
-    title: 'Advanced Python Programming',
-    tags: ['Python', 'Programming'],
-    viewsCount: 45,
-    contentsCount: 12,
-    duration: '45:00',
-    isPublished: false,
-  },
-];
-
-export default function CourseKanban({ searchQuery }: { searchQuery: string }) {
-  const [courses, setCourses] = useState(initialCourses);
+export default function CourseKanban({ searchQuery, selectedTags = [] }: { searchQuery: string; selectedTags?: string[] }) {
+  const { courses, removeTag } = useCourseStore();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const removeTag = (courseId: string, tag: string) => {
-    setCourses((prev) =>
-      prev.map((c) =>
-        c.id === courseId ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c
-      )
-    );
-  };
+  const filtered = courses.filter((c) => {
+    const matchesSearch =
+      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesTags =
+      selectedTags.length === 0 || selectedTags.some((tag) => c.tags.includes(tag));
+    return matchesSearch && matchesTags;
+  });
 
   const handleShare = (course: Course) => {
     setShareUrl(`${window.location.origin}/courses/${course.id}`);
@@ -103,7 +52,7 @@ export default function CourseKanban({ searchQuery }: { searchQuery: string }) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04 }}
-            className="group relative overflow-hidden rounded-lg border bg-white shadow-sm transition-shadow hover:shadow-md"
+            className="group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md"
           >
             <div className="flex items-center gap-6 p-5">
               {/* Left: Name + Tags */}
@@ -135,16 +84,16 @@ export default function CourseKanban({ searchQuery }: { searchQuery: string }) {
                 <table className="text-sm">
                   <tbody>
                     <tr>
-                      <td className="pr-4 text-gray-500">Views</td>
-                      <td className="font-medium text-gray-900">{course.viewsCount}</td>
+                      <td className="pr-4 text-muted-foreground">Views</td>
+                      <td className="font-medium text-foreground">{course.viewsCount}</td>
                     </tr>
                     <tr>
-                      <td className="pr-4 text-gray-500">Contents</td>
-                      <td className="font-medium text-gray-900">{course.contentsCount}</td>
+                      <td className="pr-4 text-muted-foreground">Contents</td>
+                      <td className="font-medium text-foreground">{course.contentsCount}</td>
                     </tr>
                     <tr>
-                      <td className="pr-4 text-gray-500">Duration</td>
-                      <td className="font-medium text-gray-900">{course.duration}</td>
+                      <td className="pr-4 text-muted-foreground">Duration</td>
+                      <td className="font-medium text-foreground">{course.duration}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -184,9 +133,9 @@ export default function CourseKanban({ searchQuery }: { searchQuery: string }) {
         ))}
 
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-            <p className="text-lg text-gray-500">No courses found</p>
-            <p className="text-sm text-gray-400">
+          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
+            <p className="text-lg text-muted-foreground">No courses found</p>
+            <p className="text-sm text-muted-foreground">
               Try adjusting your search or create a new course
             </p>
           </div>

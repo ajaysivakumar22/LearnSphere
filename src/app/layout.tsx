@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from '@/components/shared/toaster'
+import { ThemeProvider } from '@/lib/theme-context'
+import { AuthProvider } from '@/lib/auth-context'
+import { CourseStoreProvider } from '@/lib/course-store'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -16,10 +19,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          <AuthProvider>
+            <CourseStoreProvider>
+              {children}
+              <Toaster />
+            </CourseStoreProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

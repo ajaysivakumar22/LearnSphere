@@ -10,6 +10,7 @@ import {
 } from '@/components/shared/dialog';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/shared/input';
+import { useCourseStore } from '@/lib/course-store';
 
 interface CreateCourseDialogProps {
   open: boolean;
@@ -18,10 +19,22 @@ interface CreateCourseDialogProps {
 
 export default function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogProps) {
   const [title, setTitle] = useState('');
+  const { addCourse } = useCourseStore();
 
   const handleCreate = () => {
-    // TODO: Create course via API
-    console.log({ title });
+    if (!title.trim()) return;
+    addCourse({
+      title: title.trim(),
+      tags: [],
+      viewsCount: 0,
+      contentsCount: 0,
+      duration: '00:00',
+      isPublished: false,
+      description: '',
+      lessons: 0,
+      rating: 0,
+      createdBy: 'admin',
+    });
     onOpenChange(false);
     setTitle('');
   };

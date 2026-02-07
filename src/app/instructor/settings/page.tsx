@@ -14,22 +14,20 @@ import { useTheme } from '@/lib/theme-context';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
-export default function AdminSettingsPage() {
+export default function InstructorSettingsPage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const auth = useAuth();
   const router = useRouter();
 
   // Profile
-  const [displayName, setDisplayName] = useState(auth.userName || 'Admin User');
-  const [profileEmail, setProfileEmail] = useState('admin@learnsphere.com');
-  const [bio, setBio] = useState('Platform administrator at LearnSphere');
+  const [displayName, setDisplayName] = useState(auth.userName || 'Instructor');
+  const [profileEmail, setProfileEmail] = useState('instructor@learnsphere.com');
+  const [bio, setBio] = useState('Course instructor at LearnSphere');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   // General / Account
-  const [platformName, setPlatformName] = useState('LearnSphere');
   const [language, setLanguage] = useState('en');
   const [timezone, setTimezone] = useState('UTC');
-  const [defaultVisibility, setDefaultVisibility] = useState('everyone');
 
   // Notifications
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -45,7 +43,6 @@ export default function AdminSettingsPage() {
 
   // Security
   const [twoFactor, setTwoFactor] = useState(false);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState('30');
 
   const themeOptions = [
@@ -128,10 +125,6 @@ export default function AdminSettingsPage() {
             <h2 className="text-lg font-semibold text-foreground">Account Settings</h2>
           </div>
           <div className="space-y-4">
-            <div>
-              <Label className="mb-1.5 block text-sm">Platform Name</Label>
-              <Input value={platformName} onChange={(e) => setPlatformName(e.target.value)} />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="mb-1.5 block text-sm">Language</Label>
@@ -163,17 +156,6 @@ export default function AdminSettingsPage() {
                 </select>
               </div>
             </div>
-            <div>
-              <Label className="mb-1.5 block text-sm">Default Course Visibility</Label>
-              <select
-                value={defaultVisibility}
-                onChange={(e) => setDefaultVisibility(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="everyone">Everyone</option>
-                <option value="signed_in">Signed In Users Only</option>
-              </select>
-            </div>
           </div>
         </section>
 
@@ -186,9 +168,9 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {[
               { label: 'Email Notifications', desc: 'Receive email notifications for platform events', state: emailNotifications, set: setEmailNotifications },
-              { label: 'New Enrollments', desc: 'Get notified when someone enrolls in a course', state: enrollmentNotifications, set: setEnrollmentNotifications },
-              { label: 'Course Completions', desc: 'Get notified when a learner completes a course', state: completionNotifications, set: setCompletionNotifications },
-              { label: 'Weekly Digest', desc: 'Receive a weekly summary of platform activity', state: weeklyDigest, set: setWeeklyDigest },
+              { label: 'New Enrollments', desc: 'Get notified when someone enrolls in your course', state: enrollmentNotifications, set: setEnrollmentNotifications },
+              { label: 'Course Completions', desc: 'Get notified when a learner completes your course', state: completionNotifications, set: setCompletionNotifications },
+              { label: 'Weekly Digest', desc: 'Receive a weekly summary of your course activity', state: weeklyDigest, set: setWeeklyDigest },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div>
@@ -256,7 +238,7 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
-        {/* ===== Appearance (compact) ===== */}
+        {/* ===== Appearance ===== */}
         <section className="rounded-lg border bg-card p-6">
           <div className="mb-3 flex items-center gap-2">
             <Sun className="h-5 w-5 text-primary" />
@@ -288,11 +270,11 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
-        {/* ===== Security & Access ===== */}
+        {/* ===== Security ===== */}
         <section className="rounded-lg border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Security & Access</h2>
+            <h2 className="text-lg font-semibold text-foreground">Security</h2>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -301,13 +283,6 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted-foreground">Add an extra layer of security to your account</p>
               </div>
               <Switch checked={twoFactor} onCheckedChange={setTwoFactor} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">Maintenance Mode</p>
-                <p className="text-xs text-muted-foreground">When enabled, only admins can access the platform</p>
-              </div>
-              <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} />
             </div>
             <div>
               <Label className="mb-1.5 block text-sm">Session Timeout (minutes)</Label>
@@ -354,7 +329,7 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
-        {/* ===== About Us ===== */}
+        {/* ===== About ===== */}
         <section className="rounded-lg border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />

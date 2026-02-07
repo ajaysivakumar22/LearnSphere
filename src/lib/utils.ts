@@ -7,13 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 
 // Badge level calculator
 export function getBadgeLevel(points: number): string {
-  if (points >= 120) return 'Master';
-  if (points >= 100) return 'Expert';
-  if (points >= 80) return 'Specialist';
-  if (points >= 60) return 'Achiever';
+  if (points >= 500) return 'Legend';
+  if (points >= 350) return 'Master';
+  if (points >= 250) return 'Expert';
+  if (points >= 150) return 'Specialist';
+  if (points >= 80) return 'Achiever';
   if (points >= 40) return 'Explorer';
-  if (points >= 20) return 'Newbie';
-  return 'Newbie';
+  if (points >= 10) return 'Newbie';
+  return 'Starter';
 }
 
 // Calculate quiz points based on attempt

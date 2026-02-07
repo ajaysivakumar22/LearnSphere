@@ -1,86 +1,154 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Label } from '@/components/shared/label';
-import { Input } from '@/components/shared/input';
-import { Button } from '@/components/shared/button';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const courseAdmins = [
+  'Ajay Sivakumar',
+  'Salman Khan',
+  'Priya Sharma',
+  'Ahmed Ali',
+  'Jessica Lee',
+];
 
 export default function OptionsTab({ courseId }: { courseId: string }) {
-  const [visibility, setVisibility] = useState('everyone');
-  const [accessRule, setAccessRule] = useState('open');
-  const [price, setPrice] = useState('');
+  const [showCourseTo, setShowCourseTo] = useState<'everyone' | 'signed_in'>('everyone');
+  const [accessRules, setAccessRules] = useState<{ open: boolean; invitation: boolean; payment: boolean }>({
+    open: true,
+    invitation: false,
+    payment: false,
+  });
+  const [price, setPrice] = useState('500');
+  const [courseAdmin, setCourseAdmin] = useState('');
+
+  const toggleRule = (rule: 'open' | 'invitation' | 'payment') => {
+    setAccessRules((prev) => ({ ...prev, [rule]: !prev[rule] }));
+  };
 
   return (
-    <div className="card-odoo max-w-2xl p-6">
-      <h2 className="mb-6 text-lg font-semibold">Course Options</h2>
-      <div className="space-y-6">
-        {/* Visibility */}
+    <div className="overflow-hidden rounded-b-lg border border-t-0 bg-white p-6">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
+        {/* ---- Left: Access course rights ---- */}
         <div>
-          <Label className="mb-2 block">Visibility</Label>
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="everyone">Everyone</option>
-            <option value="signed_in">Signed In Users Only</option>
-          </select>
-        </div>
+          <h3 className="mb-6 text-base font-semibold italic text-gray-800">Access course rights</h3>
 
-        {/* Access Rules */}
-        <div>
-          <Label className="mb-2 block">Access Rules</Label>
-          <div className="space-y-3">
-            {[
-              { value: 'open', label: 'Open', desc: 'Anyone can enroll' },
-              { value: 'invitation', label: 'On Invitation', desc: 'Manual enrollment required' },
-              { value: 'payment', label: 'On Payment', desc: 'Requires payment to enroll' },
-            ].map((option) => (
-              <label
-                key={option.value}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-all ${
-                  accessRule === option.value ? 'border-primary bg-primary/5' : 'hover:border-gray-400'
-                }`}
-              >
+          {/* Show course to */}
+          <div className="mb-6">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Show course to:
+            </label>
+            <select
+              value={showCourseTo}
+              onChange={(e) => setShowCourseTo(e.target.value as 'everyone' | 'signed_in')}
+              className="w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            >
+              <option value="everyone">Everyone</option>
+              <option value="signed_in">Signed In</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              Define who can access your courses and their content
+            </p>
+          </div>
+
+          {/* Access rules */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Access rules:
+            </label>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {/* Open */}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
-                  type="radio"
-                  name="accessRule"
-                  value={option.value}
-                  checked={accessRule === option.value}
-                  onChange={(e) => setAccessRule(e.target.value)}
-                  className="text-primary"
+                  type="checkbox"
+                  checked={accessRules.open}
+                  onChange={() => toggleRule('open')}
+                  className="accent-primary"
                 />
-                <div>
-                  <p className="font-medium">{option.label}</p>
-                  <p className="text-sm text-gray-500">{option.desc}</p>
-                </div>
+                Open
               </label>
-            ))}
+
+              {/* On Invitation */}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={accessRules.invitation}
+                  onChange={() => toggleRule('invitation')}
+                  className="accent-primary"
+                />
+                On Invitation
+              </label>
+
+              {/* On Payment */}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={accessRules.payment}
+                  onChange={() => toggleRule('payment')}
+                  className="accent-primary"
+                />
+                On Payment
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              Defines how people can access/enroll to your courses
+            </p>
+
+            {/* Price field (shown only when On Payment is checked) */}
+            <AnimatePresence>
+              {accessRules.payment && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 overflow-hidden"
+                >
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700">Price:</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">₹</span>
+                      <input
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="0"
+                        className="w-32 rounded-md border border-gray-300 py-2 pl-7 pr-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    The user has to pay for accessing the course
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Price */}
-        <AnimatePresence>
-          {accessRule === 'payment' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <Label htmlFor="price" className="mb-2 block">Price (₹)</Label>
-              <Input
-                id="price"
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="Enter price in Rupees"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* ---- Right: Responsible ---- */}
+        <div>
+          <h3 className="mb-6 text-base font-semibold italic text-gray-800">Responsible</h3>
 
-        <Button variant="odoo">Save Options</Button>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Course Admin:
+            </label>
+            <select
+              value={courseAdmin}
+              onChange={(e) => setCourseAdmin(e.target.value)}
+              className="w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Select admin...</option>
+              {courseAdmins.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              Decide who&apos;ll be the responsible of the course
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

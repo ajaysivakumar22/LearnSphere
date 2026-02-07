@@ -14,41 +14,22 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/shared/dialog';
+import { useCourseStore, type Course } from '@/lib/course-store';
 
-interface Course {
-  id: string;
-  title: string;
-  tags: string[];
-  viewsCount: number;
-  contentsCount: number;
-  duration: string;
-  isPublished: boolean;
-}
-
-const initialCourses: Course[] = [
-  { id: '1', title: 'Introduction to Odoo AI', tags: ['AI', 'Odoo', 'Automation'], viewsCount: 15, contentsCount: 6, duration: '25:30', isPublished: true },
-  { id: '2', title: 'Basics of Odoo CRM', tags: ['CRM', 'Sales', 'Odoo'], viewsCount: 20, contentsCount: 8, duration: '20:35', isPublished: true },
-  { id: '3', title: 'About Odoo Courses', tags: ['eLearning', 'Odoo', 'Courses'], viewsCount: 10, contentsCount: 5, duration: '10:20', isPublished: true },
-  { id: '4', title: 'Advanced Python Programming', tags: ['Python', 'Programming'], viewsCount: 45, contentsCount: 12, duration: '45:00', isPublished: false },
-];
-
-export default function CourseList({ searchQuery }: { searchQuery: string }) {
-  const [courses, setCourses] = useState(initialCourses);
+export default function CourseList({ searchQuery, selectedTags = [] }: { searchQuery: string; selectedTags?: string[] }) {
+  const { courses, removeTag } = useCourseStore();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const removeTag = (courseId: string, tag: string) => {
-    setCourses((prev) =>
-      prev.map((c) =>
-        c.id === courseId ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c
-      )
-    );
-  };
+  const filtered = courses.filter((c) => {
+    const matchesSearch =
+      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesTags =
+      selectedTags.length === 0 || selectedTags.some((tag) => c.tags.includes(tag));
+    return matchesSearch && matchesTags;
+  });
 
   const handleShare = (course: Course) => {
     setShareUrl(`${window.location.origin}/courses/${course.id}`);
@@ -64,22 +45,22 @@ export default function CourseList({ searchQuery }: { searchQuery: string }) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+      <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Course Name</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Tags</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Views</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Contents</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Duration</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Status</th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Course Name</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tags</th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Views</th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Contents</th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Duration</th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {filtered.map((course) => (
-              <tr key={course.id} className="hover:bg-gray-50">
+              <tr key={course.id} className="hover:bg-accent/50">
                 <td className="px-4 py-3 text-sm font-semibold text-primary">{course.title}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
@@ -99,21 +80,21 @@ export default function CourseList({ searchQuery }: { searchQuery: string }) {
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-sm text-gray-700">
+                <td className="px-4 py-3 text-center text-sm text-foreground">
                   <div className="flex items-center justify-center gap-1">
-                    <Eye className="h-3.5 w-3.5 text-gray-400" />
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                     {course.viewsCount}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-sm text-gray-700">
+                <td className="px-4 py-3 text-center text-sm text-foreground">
                   <div className="flex items-center justify-center gap-1">
-                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                     {course.contentsCount}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-sm text-gray-700">
+                <td className="px-4 py-3 text-center text-sm text-foreground">
                   <div className="flex items-center justify-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-gray-400" />
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                     {course.duration}
                   </div>
                 </td>

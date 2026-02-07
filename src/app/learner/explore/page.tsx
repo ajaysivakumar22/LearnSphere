@@ -6,77 +6,19 @@ import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
 import Link from 'next/link';
-
-const allCourses = [
-  {
-    id: '1',
-    title: 'Basics of Odoo CRM',
-    description: 'Learn the fundamentals of customer relationship management with Odoo.',
-    tags: ['CRM', 'Odoo', 'Sales'],
-    enrolled: 45,
-    lessons: 12,
-    rating: 4.5,
-    isEnrolled: true,
-  },
-  {
-    id: '2',
-    title: 'Advanced Python Programming',
-    description: 'Deep dive into Python with advanced concepts and real-world projects.',
-    tags: ['Python', 'Programming'],
-    enrolled: 120,
-    lessons: 24,
-    rating: 4.8,
-    isEnrolled: true,
-  },
-  {
-    id: '3',
-    title: 'Web Development Masterclass',
-    description: 'Complete web development course covering HTML, CSS, JavaScript, and React.',
-    tags: ['Web', 'React', 'JavaScript'],
-    enrolled: 89,
-    lessons: 32,
-    rating: 4.6,
-    isEnrolled: false,
-  },
-  {
-    id: '4',
-    title: 'Data Science Essentials',
-    description: 'Introduction to data science, machine learning, and analytics.',
-    tags: ['Data Science', 'ML'],
-    enrolled: 67,
-    lessons: 16,
-    rating: 4.3,
-    isEnrolled: true,
-  },
-  {
-    id: '5',
-    title: 'UI/UX Design Principles',
-    description: 'Master the fundamentals of user interface and user experience design.',
-    tags: ['Design', 'UI/UX'],
-    enrolled: 54,
-    lessons: 18,
-    rating: 4.7,
-    isEnrolled: false,
-  },
-  {
-    id: '6',
-    title: 'DevOps Fundamentals',
-    description: 'Learn CI/CD, Docker, Kubernetes, and cloud deployment strategies.',
-    tags: ['DevOps', 'Cloud'],
-    enrolled: 38,
-    lessons: 20,
-    rating: 4.4,
-    isEnrolled: false,
-  },
-];
+import { useCourseStore } from '@/lib/course-store';
 
 export default function ExplorePage() {
+  const { courses } = useCourseStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  const allTags = Array.from(new Set(allCourses.flatMap((c) => c.tags)));
+  // Only show published courses to learners
+  const publishedCourses = courses.filter((c) => c.isPublished);
 
-  const filtered = allCourses.filter((c) => {
+  const allTags = Array.from(new Set(publishedCourses.flatMap((c) => c.tags)));
+
+  const filtered = publishedCourses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = !selectedTag || c.tags.includes(selectedTag);
     return matchesSearch && matchesTag;
@@ -84,7 +26,7 @@ export default function ExplorePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-6 text-3xl font-bold text-gray-900">Explore Courses</h1>
+      <h1 className="mb-6 text-3xl font-bold text-foreground">Explore Courses</h1>
 
       {/* Search & Filter */}
       <div className="mb-6 flex items-center gap-4">
@@ -95,7 +37,7 @@ export default function ExplorePage() {
             placeholder="Search courses..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-full rounded-lg border border-gray-300 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -105,7 +47,7 @@ export default function ExplorePage() {
         <button
           onClick={() => setSelectedTag(null)}
           className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-            !selectedTag ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            !selectedTag ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
           }`}
         >
           All
@@ -115,7 +57,7 @@ export default function ExplorePage() {
             key={tag}
             onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
             className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-              selectedTag === tag ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              selectedTag === tag ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
             {tag}
@@ -132,11 +74,11 @@ export default function ExplorePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <div className="card-odoo overflow-hidden">
-              <div className="h-40 bg-gradient-to-br from-purple-100 to-pink-100" />
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md">
+              <div className="h-40 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/40" />
               <div className="p-4">
-                <h3 className="mb-1 text-lg font-semibold text-gray-900">{course.title}</h3>
-                <p className="mb-3 text-sm text-gray-600 line-clamp-2">{course.description}</p>
+                <h3 className="mb-1 text-lg font-semibold text-foreground">{course.title}</h3>
+                <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{course.description || 'No description available.'}</p>
 
                 <div className="mb-3 flex flex-wrap gap-1">
                   {course.tags.map((tag) => (
@@ -144,15 +86,15 @@ export default function ExplorePage() {
                   ))}
                 </div>
 
-                <div className="mb-4 flex items-center gap-4 text-sm text-gray-500">
-                  <span>{course.enrolled} enrolled</span>
+                <div className="mb-4 flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>{course.viewsCount} views</span>
                   <span>{course.lessons} lessons</span>
                   <span>⭐ {course.rating}</span>
                 </div>
 
                 <Link href={`/learner/courses/${course.id}/learn`}>
-                  <Button variant={course.isEnrolled ? 'odoo' : 'outline'} className="w-full">
-                    {course.isEnrolled ? 'Continue Learning' : 'Enroll Now'}
+                  <Button variant="odoo" className="w-full">
+                    Start Learning
                   </Button>
                 </Link>
               </div>

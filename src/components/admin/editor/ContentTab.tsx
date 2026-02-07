@@ -1,144 +1,156 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, GripVertical, Video, FileText, Image, HelpCircle, Trash2 } from 'lucide-react';
+import { MoreVertical, Plus } from 'lucide-react';
 import { Button } from '@/components/shared/button';
-import { Input } from '@/components/shared/input';
-import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/shared/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/shared/dialog';
+import AddContentDialog from '@/components/admin/editor/AddContentDialog';
 
-interface Lesson {
+export interface ContentItem {
   id: string;
   title: string;
-  type: 'video' | 'document' | 'image' | 'quiz';
-  duration: number;
-  orderIndex: number;
+  category: 'Video' | 'Document' | 'Image' | 'Quiz';
 }
 
-const typeIcons = {
-  video: Video,
-  document: FileText,
-  image: Image,
-  quiz: HelpCircle,
-};
-
-const typeColors = {
-  video: 'bg-blue-100 text-blue-700',
-  document: 'bg-green-100 text-green-700',
-  image: 'bg-purple-100 text-purple-700',
-  quiz: 'bg-orange-100 text-orange-700',
-};
-
-const sampleLessons: Lesson[] = [
-  { id: '1', title: 'Introduction to CRM', type: 'video', duration: 15, orderIndex: 0 },
-  { id: '2', title: 'Setting Up Your Pipeline', type: 'document', duration: 10, orderIndex: 1 },
-  { id: '3', title: 'Pipeline Overview', type: 'image', duration: 5, orderIndex: 2 },
-  { id: '4', title: 'Module 1 Quiz', type: 'quiz', duration: 10, orderIndex: 3 },
-];
+const initialContent: ContentItem[] = [];
 
 export default function ContentTab({ courseId }: { courseId: string }) {
-  const [lessons, setLessons] = useState<Lesson[]>(sampleLessons);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newType, setNewType] = useState<Lesson['type']>('video');
+  const [contents, setContents] = useState<ContentItem[]>(initialContent);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingContent, setEditingContent] = useState<ContentItem | null>(null);
 
-  const addLesson = () => {
-    if (!newTitle.trim()) return;
-    const newLesson: Lesson = {
-      id: String(Date.now()),
-      title: newTitle,
-      type: newType,
-      duration: 0,
-      orderIndex: lessons.length,
-    };
-    setLessons([...lessons, newLesson]);
-    setNewTitle('');
-    setShowAddForm(false);
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
+
+  const handleAdd = (item: ContentItem) => {
+    setContents([...contents, item]);
+    setShowAddDialog(false);
   };
 
-  const removeLesson = (id: string) => {
-    setLessons(lessons.filter((l) => l.id !== id));
+  const handleUpdate = (updated: ContentItem) => {
+    setContents(contents.map((c) => (c.id === updated.id ? updated : c)));
+    setEditingContent(null);
+  };
+
+  const handleDelete = () => {
+    if (deleteTarget) {
+      setContents(contents.filter((c) => c.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    }
   };
 
   return (
-    <div className="card-odoo p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Course Content</h2>
-        <Button variant="odoo" size="sm" onClick={() => setShowAddForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Content
+    <div>
+      {/* Table */}
+      <div className="overflow-hidden rounded-b-lg border border-t-0 bg-card">
+        <table className="w-full">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Content title</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
+              <th className="w-12 px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {contents.map((item) => (
+              <tr key={item.id} className="group hover:bg-muted/50">
+                <td className="px-4 py-3 text-sm text-foreground">{item.title}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">{item.category}</td>
+                <td className="px-4 py-3 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100">
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingContent(item)}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => setDeleteTarget(item)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+              </tr>
+            ))}
+            {contents.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  No content yet. Click &quot;Add content&quot; to get started.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add content button */}
+      <div className="mt-4 flex justify-center">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowAddDialog(true)}
+          className="border-primary text-primary hover:bg-primary/5"
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Add content
         </Button>
       </div>
 
-      {/* Add Form */}
-      {showAddForm && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="mb-4 rounded-lg border border-dashed border-primary bg-primary/5 p-4"
-        >
-          <div className="flex items-end gap-4">
-            <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium">Title</label>
-              <Input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Lesson title..."
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Type</label>
-              <select
-                value={newType}
-                onChange={(e) => setNewType(e.target.value as Lesson['type'])}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="video">Video</option>
-                <option value="document">Document</option>
-                <option value="image">Image</option>
-                <option value="quiz">Quiz</option>
-              </select>
-            </div>
-            <Button variant="odoo" onClick={addLesson}>Add</Button>
-            <Button variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button>
-          </div>
-        </motion.div>
+      {/* Add Content Dialog */}
+      <AddContentDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSave={handleAdd}
+      />
+
+      {/* Edit Content Dialog */}
+      {editingContent && (
+        <AddContentDialog
+          open={!!editingContent}
+          onOpenChange={(open) => !open && setEditingContent(null)}
+          onSave={handleUpdate}
+          editItem={editingContent}
+        />
       )}
 
-      {/* Lessons List */}
-      <div className="space-y-2">
-        {lessons.map((lesson, idx) => {
-          const Icon = typeIcons[lesson.type];
-          return (
-            <motion.div
-              key={lesson.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="flex items-center gap-4 rounded-lg border bg-white p-3 hover:shadow-sm"
-            >
-              <GripVertical className="h-5 w-5 cursor-grab text-gray-400" />
-              <div className={cn('rounded-lg p-2', typeColors[lesson.type])}>
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{lesson.title}</p>
-                <p className="text-xs text-gray-500 capitalize">{lesson.type} • {lesson.duration} min</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => removeLesson(lesson.id)}>
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {lessons.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-          <FileText className="mb-4 h-12 w-12 text-gray-400" />
-          <p className="text-gray-500">No content yet. Click &quot;Add Content&quot; to get started.</p>
-        </div>
-      )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Content</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

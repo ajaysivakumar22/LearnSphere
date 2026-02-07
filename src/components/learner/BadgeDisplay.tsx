@@ -1,67 +1,100 @@
 'use client';
 
-import { Trophy, Star, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getBadgeLevel } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 const badges = [
-  { name: 'Newbie', points: 20, color: 'bg-gray-500' },
-  { name: 'Explorer', points: 40, color: 'bg-blue-500' },
-  { name: 'Achiever', points: 60, color: 'bg-green-500' },
-  { name: 'Specialist', points: 80, color: 'bg-purple-500' },
-  { name: 'Expert', points: 100, color: 'bg-orange-500' },
-  { name: 'Master', points: 120, color: 'bg-red-500' },
+  { name: 'Starter', points: 0, emoji: '🌱', color: 'from-gray-400 to-gray-600' },
+  { name: 'Newbie', points: 10, emoji: '🟢', color: 'from-green-400 to-green-600' },
+  { name: 'Explorer', points: 40, emoji: '🧭', color: 'from-blue-400 to-blue-600' },
+  { name: 'Achiever', points: 80, emoji: '⭐', color: 'from-yellow-400 to-yellow-600' },
+  { name: 'Specialist', points: 150, emoji: '🎯', color: 'from-purple-400 to-purple-600' },
+  { name: 'Expert', points: 250, emoji: '👑', color: 'from-orange-400 to-orange-600' },
+  { name: 'Master', points: 350, emoji: '🏆', color: 'from-red-400 to-red-600' },
+  { name: 'Legend', points: 500, emoji: '💎', color: 'from-cyan-400 to-cyan-600' },
 ];
 
 export default function BadgeDisplay({ totalPoints }: { totalPoints: number }) {
   const currentBadge = getBadgeLevel(totalPoints);
+  const maxPoints = 500;
+  const progressAngle = Math.min((totalPoints / maxPoints) * 360, 360);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Circular points display */}
       <div className="text-center">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           className="relative mx-auto inline-flex items-center justify-center"
         >
-          <div className="h-32 w-32 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-1">
-            <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-              <div className="text-center">
-                <Trophy className="mx-auto h-10 w-10 text-purple-600" />
-                <p className="mt-1 text-2xl font-bold text-gray-900">{totalPoints}</p>
-                <p className="text-xs text-gray-600">Points</p>
-              </div>
+          <div className="relative h-36 w-36">
+            {/* Background circle */}
+            <svg className="h-full w-full -rotate-90" viewBox="0 0 144 144">
+              <circle
+                cx="72" cy="72" r="62"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="10"
+                className="text-muted"
+              />
+              <circle
+                cx="72" cy="72" r="62"
+                fill="none"
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={`${(progressAngle / 360) * 2 * Math.PI * 62} ${2 * Math.PI * 62}`}
+                className="text-primary"
+                stroke="url(#badgeGradient)"
+              />
+              <defs>
+                <linearGradient id="badgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="#a855f7" />
+                </linearGradient>
+              </defs>
+            </svg>
+            {/* Center text */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-foreground">Total</span>
+              <span className="text-3xl font-extrabold text-primary">{totalPoints}</span>
+              <span className="text-xs font-medium text-muted-foreground">Points</span>
             </div>
           </div>
         </motion.div>
-        <h3 className="mt-4 text-xl font-bold text-gray-900">{currentBadge}</h3>
+        <h3 className="mt-3 text-lg font-bold text-foreground">{currentBadge}</h3>
       </div>
 
-      <div className="space-y-3">
-        <h4 className="font-semibold text-gray-900">Badges</h4>
+      {/* Badges list */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold text-foreground">Badges</h4>
         {badges.map((badge) => {
           const isUnlocked = totalPoints >= badge.points;
+          const isCurrent = currentBadge === badge.name;
           return (
             <div
               key={badge.name}
-              className="flex items-center justify-between rounded-lg border p-3"
+              className={cn(
+                'flex items-center justify-between rounded-lg border px-3 py-2.5 transition-colors',
+                isCurrent
+                  ? 'border-primary/50 bg-primary/5 dark:bg-primary/10'
+                  : 'border-border',
+                !isUnlocked && 'opacity-50'
+              )}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-full',
-                    isUnlocked ? badge.color : 'bg-gray-200'
-                  )}
-                >
-                  <Star className="h-5 w-5 text-white" />
-                </div>
+                <span className="text-xl">{badge.emoji}</span>
                 <div>
-                  <p className="font-medium text-gray-900">{badge.name}</p>
-                  <p className="text-xs text-gray-600">{badge.points} Points</p>
+                  <p className={cn('text-sm font-medium', isCurrent ? 'text-primary' : 'text-foreground')}>
+                    {badge.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{badge.points} Points</p>
                 </div>
               </div>
-              {isUnlocked && <CheckCircle className="h-5 w-5 text-green-500" />}
+              {isUnlocked && (
+                <span className="text-sm text-green-500">✓</span>
+              )}
             </div>
           );
         })}

@@ -1,105 +1,75 @@
 import Link from 'next/link'
-import { GraduationCap, Users, ShieldCheck } from 'lucide-react'
-import { Button } from '@/components/shared/button'
+import { GraduationCap, BookOpen, Brain, Trophy, Sparkles, ArrowRight } from 'lucide-react'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          {/* Logo */}
-          <div className="mb-8 flex justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600">
-              <GraduationCap className="h-10 w-10 text-white" />
-            </div>
-          </div>
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: '#0f0f0f' }}>
+      {/* Hero Section */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-20">
+        {/* Logo */}
+        <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-violet-500 shadow-2xl shadow-purple-500/30">
+          <GraduationCap className="h-12 w-12 text-white" />
+        </div>
 
-          {/* Title */}
-          <h1 className="mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-6xl font-bold text-transparent">
-            LearnSphere
-          </h1>
-          <p className="mb-12 text-xl text-gray-600">
-            Professional eLearning Platform for Instructors & Learners
-          </p>
+        {/* Title */}
+        <h1 className="mb-4 bg-gradient-to-r from-purple-400 via-violet-400 to-pink-400 bg-clip-text text-center text-6xl font-bold tracking-tight text-transparent">
+          LearnSphere
+        </h1>
+        <p className="mb-10 max-w-lg text-center text-lg" style={{ color: '#999' }}>
+          A modern eLearning platform to create, manage, and explore courses — all in one place.
+        </p>
 
-          {/* Navigation Cards */}
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-3">
-            {/* Admin Card */}
-            <Link href="/login">
-              <div className="card-odoo group cursor-pointer p-8 transition-all hover:scale-105 hover:shadow-xl">
-                <div className="mb-4 flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-200">
-                    <ShieldCheck className="h-8 w-8 text-blue-600" />
-                  </div>
+        {/* Single Login Button */}
+        <Link href="/login" className="group">
+          <button
+            className="flex h-14 cursor-pointer items-center gap-3 rounded-2xl px-10 text-base font-semibold text-white shadow-xl shadow-purple-500/20 transition-all hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/30"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
+          >
+            Get Started
+            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+          </button>
+        </Link>
+
+        {/* Guest link */}
+        <Link
+          href="/learner/explore"
+          className="mt-5 text-sm transition-colors"
+          style={{ color: '#666' }}
+        >
+          or browse courses as a guest
+        </Link>
+      </div>
+
+      {/* Features */}
+      <div className="border-t px-4 py-16" style={{ borderColor: '#1a1a1a' }}>
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: BookOpen, label: 'Course Builder', desc: 'Kanban & list views with rich editor' },
+            { icon: Brain, label: 'Quiz Engine', desc: 'Dynamic quizzes with point rewards' },
+            { icon: Trophy, label: 'Gamification', desc: '6-tier badge system for learners' },
+            { icon: Sparkles, label: 'Role-based Access', desc: 'Smart permissions per user type' },
+          ].map((feat) => {
+            const Icon = feat.icon;
+            return (
+              <div
+                key={feat.label}
+                className="rounded-xl border p-6 text-center transition-colors"
+                style={{ borderColor: '#1f1f1f', backgroundColor: '#141414' }}
+              >
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg" style={{ backgroundColor: '#1f1f1f' }}>
+                  <Icon className="h-5 w-5" style={{ color: '#a78bfa' }} />
                 </div>
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Admin Portal</h2>
-                <p className="mb-4 text-gray-600">
-                  Super user access to manage platform, users, courses & settings
-                </p>
-                <Button variant="odoo" className="w-full">
-                  Admin Login
-                </Button>
+                <h3 className="mb-1 text-sm font-semibold" style={{ color: '#e5e5e5' }}>{feat.label}</h3>
+                <p className="text-xs" style={{ color: '#666' }}>{feat.desc}</p>
               </div>
-            </Link>
-
-            {/* Instructor Card */}
-            <Link href="/login">
-              <div className="card-odoo group cursor-pointer p-8 transition-all hover:scale-105 hover:shadow-xl">
-                <div className="mb-4 flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 group-hover:bg-purple-200">
-                    <Users className="h-8 w-8 text-purple-600" />
-                  </div>
-                </div>
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Instructor Portal</h2>
-                <p className="mb-4 text-gray-600">
-                  Create and manage courses, track student progress & build content
-                </p>
-                <Button variant="odoo" className="w-full">
-                  Instructor Login
-                </Button>
-              </div>
-            </Link>
-
-            {/* Learner Card */}
-            <Link href="/login">
-              <div className="card-odoo group cursor-pointer p-8 transition-all hover:scale-105 hover:shadow-xl">
-                <div className="mb-4 flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-100 group-hover:bg-pink-200">
-                    <GraduationCap className="h-8 w-8 text-pink-600" />
-                  </div>
-                </div>
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Learning Portal</h2>
-                <p className="mb-4 text-gray-600">
-                  Explore courses, track your progress, and earn badges as you learn
-                </p>
-                <Button variant="odoo" className="w-full">
-                  Learner Login
-                </Button>
-              </div>
-            </Link>
-          </div>
-
-          {/* Features */}
-          <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="rounded-lg border border-purple-200 bg-white/50 p-6">
-              <h3 className="mb-2 font-semibold text-gray-900">Kanban & List Views</h3>
-              <p className="text-sm text-gray-600">Organize courses with flexible view options</p>
-            </div>
-            <div className="rounded-lg border border-purple-200 bg-white/50 p-6">
-              <h3 className="mb-2 font-semibold text-gray-900">Advanced Quiz Builder</h3>
-              <p className="text-sm text-gray-600">Create engaging quizzes with dynamic rewards</p>
-            </div>
-            <div className="rounded-lg border border-purple-200 bg-white/50 p-6">
-              <h3 className="mb-2 font-semibold text-gray-900">Gamification System</h3>
-              <p className="text-sm text-gray-600">6-tier badge system to motivate learners</p>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="mt-16 border-t py-8 text-center text-sm text-gray-600">
-        <p>Built with Next.js 15, Supabase, Drizzle ORM & Tailwind CSS</p>
+      <footer className="border-t py-6 text-center text-xs" style={{ borderColor: '#1a1a1a', color: '#444' }}>
+        Built with Next.js 15, React & Tailwind CSS
       </footer>
     </div>
   )
