@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/shared/input';
 import { Label } from '@/components/shared/label';
@@ -86,6 +86,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 px-4">
+      {/* Back to Home */}
+      <Link
+        href="/"
+        className="fixed left-6 top-6 rounded-lg p-2 hover:bg-white/80"
+        title="Back to home"
+      >
+        <ArrowLeft className="h-5 w-5 text-gray-700" />
+      </Link>
+
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">

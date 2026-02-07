@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Download, Check, Menu, X, Video, FileText, Image, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Check, Menu, X, Video, FileText, Image, HelpCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/shared/progress';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Lesson {
   id: string;
@@ -97,6 +98,7 @@ function QuizView() {
 
 export default function LearningPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentLessonIdx, setCurrentLessonIdx] = useState(3);
   const currentLesson = sampleLessons[currentLessonIdx];
@@ -178,6 +180,13 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
         {/* Top Bar */}
         <div className="flex items-center justify-between bg-gray-800 px-6 py-4 text-white">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="rounded-lg p-1 hover:bg-white/10"
+              title="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
             {!isSidebarOpen && (
               <button onClick={() => setIsSidebarOpen(true)} className="hover:text-gray-300">
                 <Menu className="h-5 w-5" />
