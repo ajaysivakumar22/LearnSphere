@@ -1,27 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema';
+/**
+ * DATABASE LAYER — LearnSphere
+ *
+ * Target database: PostgreSQL (direct connection, no Supabase)
+ *
+ * STATUS: Placeholder only. No active database connection.
+ * The application currently uses localStorage via CourseStoreProvider,
+ * AuthProvider, and ThemeProvider (all in src/lib/).
+ *
+ * MIGRATION PLAN:
+ * 1. Install a PostgreSQL client (e.g. pg, postgres, or prisma)
+ * 2. Define the connection in this file using DATABASE_URL env var
+ * 3. Import and use the schema from ./schema.ts
+ * 4. Gradually replace localStorage calls with database queries
+ *
+ * IMPORTANT: Do not import this file until a real connection is configured.
+ */
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-}
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
-}
-
-if (!process.env.DATABASE_URL) {
-  throw new Error('Missing DATABASE_URL');
-}
-
-// Supabase client
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
-// Database connection
-const connectionString = process.env.DATABASE_URL;
-const client = postgres(connectionString);
-export const db = drizzle(client, { schema });
+// Future: export const db = ...
+export {};
