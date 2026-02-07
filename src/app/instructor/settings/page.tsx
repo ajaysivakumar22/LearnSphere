@@ -53,7 +53,7 @@ export default function InstructorSettingsPage() {
 
   const handleLogout = () => {
     auth.logout();
-    router.push('/login');
+    router.push('/');
   };
 
   return (

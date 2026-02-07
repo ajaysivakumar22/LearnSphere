@@ -509,7 +509,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-yellow-400">Sign in to attempt quizzes and earn points</p>
-                    <Link href="/login">
+                    <Link href="/sign-in">
                       <Button variant="odoo" className="px-8">Sign In to Start</Button>
                     </Link>
                   </div>
@@ -670,7 +670,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
             <div>
               <p className="font-semibold text-yellow-600 dark:text-yellow-400">Browsing as Guest</p>
               <p className="text-sm text-muted-foreground">
-                <Link href="/login" className="text-primary hover:underline">Sign in</Link> to track progress, attempt quizzes, and earn points.
+                <Link href="/sign-in" className="text-primary hover:underline">Sign in</Link> to track progress, attempt quizzes, and earn points.
               </p>
             </div>
           </div>

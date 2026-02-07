@@ -20,7 +20,7 @@ export default function HomePage() {
         </p>
 
         {/* Single Login Button */}
-        <Link href="/login" className="group">
+        <Link href="/sign-in" className="group">
           <button
             className="flex h-14 cursor-pointer items-center gap-3 rounded-2xl px-10 text-base font-semibold text-white shadow-xl shadow-purple-500/20 transition-all hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/30"
             style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}

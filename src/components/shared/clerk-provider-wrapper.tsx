@@ -1,7 +1,17 @@
 'use client';
 
+import React, { createContext, useContext } from 'react';
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
+
+/**
+ * Context that tells child components whether Clerk is available.
+ * Allows conditional usage of Clerk hooks without crashing.
+ */
+const ClerkAvailableContext = createContext(false);
+export function useClerkAvailable() {
+  return useContext(ClerkAvailableContext);
+}
 
 /**
  * Wraps children with ClerkProvider only when a valid publishable key is set.
@@ -13,7 +23,11 @@ export function ClerkProviderWrapper({ children }: { children: React.ReactNode }
   const isValidKey = key && key.startsWith('pk_') && !key.includes('REPLACE_ME');
 
   if (!isValidKey) {
-    return <>{children}</>;
+    return (
+      <ClerkAvailableContext.Provider value={false}>
+        {children}
+      </ClerkAvailableContext.Provider>
+    );
   }
 
   return (
@@ -32,7 +46,9 @@ export function ClerkProviderWrapper({ children }: { children: React.ReactNode }
       signUpUrl="/sign-up"
       afterSignOutUrl="/"
     >
-      {children}
+      <ClerkAvailableContext.Provider value={true}>
+        {children}
+      </ClerkAvailableContext.Provider>
     </ClerkProvider>
   );
 }

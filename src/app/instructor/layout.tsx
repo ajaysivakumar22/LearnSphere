@@ -30,7 +30,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.push('/');
   };
 
   return (

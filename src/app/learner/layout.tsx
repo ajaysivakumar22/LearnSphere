@@ -26,12 +26,12 @@ const allNavItems = [
 export default function LearnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoggedIn, isGuest, guestName, logout } = useAuth();
+  const { isLoggedIn, logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.push('/');
   };
 
   // Show only Explore for unauthenticated/guest users
@@ -76,13 +76,6 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
             </nav>
 
             <div className="flex items-center gap-2">
-              {/* Show guest name badge */}
-              {isGuest && guestName && (
-                <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  {guestName}
-                </span>
-              )}
-
               {isLoggedIn ? (
                 <button
                   onClick={() => setShowLogoutDialog(true)}
@@ -93,7 +86,7 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
                 </button>
               ) : (
                 <Link
-                  href="/login"
+                  href="/sign-in"
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-muted"
                 >
                   <LogIn className="h-4 w-4" />
