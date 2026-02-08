@@ -2,6 +2,10 @@
 
 A production-grade, dual-sided eLearning platform built with Next.js 15, Supabase, and Drizzle ORM.
 
+## 📂 Additional Resources
+
+**Google Drive Folder:** [LearnSphere Resources](https://drive.google.com/drive/folders/1P6UY2hF0XwyLs2qVC1Xew1fL6ygu4EVW?usp=drive_link)
+
 ## 🎯 Features
 
 ### Admin/Instructor Backoffice
