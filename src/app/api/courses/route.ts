@@ -1,77 +1,117 @@
+/**
+ * GET  /api/courses — List courses (guest-safe)
+ * POST /api/courses — Create a course (admin/instructor only)
+ */
+
 import { NextResponse } from 'next/server';
+import { query } from '@/db';
+import { getOrCreateUserFromClerk } from '@/lib/user-sync';
 
-// Sample courses data (in production, this would come from the database)
-const courses = [
-  {
-    id: '1',
-    title: 'Basics of Odoo CRM',
-    description: 'Learn the fundamentals of customer relationship management with Odoo.',
-    tags: ['CRM', 'Odoo', 'Sales'],
-    isPublished: true,
-    visibility: 'everyone',
-    accessRule: 'open',
-    price: null,
-    viewsCount: 234,
-    adminId: 'admin-1',
-    createdAt: '2025-12-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    title: 'Advanced Python Programming',
-    description: 'Deep dive into Python with advanced concepts and real-world projects.',
-    tags: ['Python', 'Programming'],
-    isPublished: true,
-    visibility: 'everyone',
-    accessRule: 'open',
-    price: null,
-    viewsCount: 456,
-    adminId: 'admin-1',
-    createdAt: '2025-11-15T00:00:00Z',
-  },
-  {
-    id: '3',
-    title: 'Web Development Masterclass',
-    description: 'Complete web development course covering HTML, CSS, JavaScript, and React.',
-    tags: ['Web', 'React', 'JavaScript'],
-    isPublished: false,
-    visibility: 'everyone',
-    accessRule: 'open',
-    price: null,
-    viewsCount: 0,
-    adminId: 'admin-1',
-    createdAt: '2026-01-10T00:00:00Z',
-  },
-  {
-    id: '4',
-    title: 'Data Science Essentials',
-    description: 'Introduction to data science, machine learning, and analytics.',
-    tags: ['Data Science', 'ML'],
-    isPublished: true,
-    visibility: 'everyone',
-    accessRule: 'payment',
-    price: 499,
-    viewsCount: 189,
-    adminId: 'admin-1',
-    createdAt: '2025-10-20T00:00:00Z',
-  },
-];
-
+// ────────────────────────────────────────────────────────────────
+// GET /api/courses
+// ────────────────────────────────────────────────────────────────
 export async function GET() {
-  return NextResponse.json(courses);
+  try {
+    // Attempt to identify the requester (null = guest)
+    let user: { id: string; role: string } | null = null;
+    try {
+      user = await getOrCreateUserFromClerk();
+    } catch {
+      // Clerk headers missing → guest request, continue
+    }
+
+    const isPrivileged =
+      user?.role === 'admin' || user?.role === 'instructor';
+
+    // Guests and learners see only published courses.
+    // Admin/instructor see ALL courses.
+    const { rows } = await query(
+      `SELECT
+         c.id,
+         c.title,
+         c.description,
+         c.tags,
+         c.image_url      AS "imageUrl",
+         c.is_published   AS "isPublished",
+         c.views_count    AS "viewsCount",
+         c.duration,
+         c.rating,
+         c.created_by     AS "createdBy",
+         c.created_at     AS "createdAt",
+         u.role           AS "creatorRole",
+         COUNT(l.id)::int AS "contentsCount"
+       FROM courses c
+       LEFT JOIN lessons l ON l.course_id = c.id
+       LEFT JOIN users u   ON u.id = c.created_by
+       ${isPrivileged ? '' : 'WHERE c.is_published = true'}
+       GROUP BY c.id, u.role
+       ORDER BY c.created_at DESC`,
+    );
+
+    return NextResponse.json(rows);
+  } catch (err) {
+    console.error('[GET /api/courses]', err);
+    return NextResponse.json(
+      { error: 'Failed to fetch courses' },
+      { status: 500 },
+    );
+  }
 }
 
+// ────────────────────────────────────────────────────────────────
+// POST /api/courses (admin/instructor only)
+// ────────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
+    const user = await getOrCreateUserFromClerk();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (user.role !== 'admin' && user.role !== 'instructor') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const newCourse = {
-      id: String(Date.now()),
-      ...body,
-      isPublished: false,
-      viewsCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    return NextResponse.json(newCourse, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    const { title, description, tags, imageUrl, duration } = body;
+
+    if (!title || typeof title !== 'string') {
+      return NextResponse.json(
+        { error: 'title is required' },
+        { status: 400 },
+      );
+    }
+
+    const { rows } = await query(
+      `INSERT INTO courses (title, description, tags, image_url, duration, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING
+         id,
+         title,
+         description,
+         tags,
+         image_url     AS "imageUrl",
+         is_published  AS "isPublished",
+         views_count   AS "viewsCount",
+         duration,
+         rating,
+         created_by    AS "createdBy",
+         created_at    AS "createdAt"`,
+      [
+        title.trim(),
+        (description ?? '').trim(),
+        tags ?? [],
+        imageUrl ?? null,
+        duration ?? '0:00',
+        user.id,
+      ],
+    );
+
+    return NextResponse.json(rows[0], { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/courses]', err);
+    return NextResponse.json(
+      { error: 'Failed to create course' },
+      { status: 500 },
+    );
   }
 }

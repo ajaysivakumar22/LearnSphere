@@ -81,8 +81,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleAuthChange = useCallback((signedIn: boolean, name: string | null) => {
     setIsLoggedIn(signedIn);
     setUserName(name);
-    setUserRole(signedIn ? 'learner' : null);
-    setIsLoaded(true);
+    if (!signedIn) {
+      setUserRole(null);
+      setIsLoaded(true);
+      return;
+    }
+    // Fetch actual role from DB via /api/auth/me
+    fetch('/api/auth/me')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch role');
+        return res.json();
+      })
+      .then((data) => {
+        const role = data.role;
+        if (role === 'admin' || role === 'instructor' || role === 'learner') {
+          setUserRole(role);
+        } else {
+          setUserRole('learner');
+        }
+      })
+      .catch(() => {
+        // Fallback to learner if DB is unreachable
+        setUserRole('learner');
+      })
+      .finally(() => {
+        setIsLoaded(true);
+      });
   }, []);
 
   const logout = useCallback(async () => {
