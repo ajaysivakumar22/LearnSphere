@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
-import { CheckCircle, ShoppingCart, Play, ArrowRight } from 'lucide-react';
+import { CheckCircle, Lock, Play, ArrowRight, Info } from 'lucide-react';
 
 interface CourseCardProps {
   course: {
@@ -22,12 +22,17 @@ interface CourseCardProps {
 }
 
 export default function CourseCard({ course }: CourseCardProps) {
+  // Check if this is a paid course that hasn't been purchased/enrolled
+  const isPaidAndNotEnrolled = course.isPaid && course.status === 'not_started';
+
   const getButtonContent = () => {
-    if (course.isPaid && course.status === 'not_started') {
+    // For paid courses that aren't enrolled, show demo mode message
+    if (isPaidAndNotEnrolled) {
       return {
-        label: `Buy Course  •  ₹${course.price ?? 500}`,
-        icon: <ShoppingCart className="mr-2 h-4 w-4" />,
-        variant: 'odoo' as const,
+        label: 'Demo Mode — Payment Disabled',
+        icon: <Lock className="mr-2 h-4 w-4" />,
+        variant: 'outline' as const,
+        disabled: true,
       };
     }
     if (course.status === 'completed') {
@@ -35,6 +40,7 @@ export default function CourseCard({ course }: CourseCardProps) {
         label: 'Review Course',
         icon: <CheckCircle className="mr-2 h-4 w-4" />,
         variant: 'outline' as const,
+        disabled: false,
       };
     }
     if (course.status === 'in_progress') {
@@ -42,12 +48,14 @@ export default function CourseCard({ course }: CourseCardProps) {
         label: 'Continue',
         icon: <Play className="mr-2 h-4 w-4" />,
         variant: 'odoo' as const,
+        disabled: false,
       };
     }
     return {
       label: 'Join Course',
       icon: <ArrowRight className="mr-2 h-4 w-4" />,
       variant: 'odoo' as const,
+      disabled: false,
     };
   };
 
@@ -88,6 +96,19 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
         )}
 
+        {/* Demo mode notice for paid courses */}
+        {isPaidAndNotEnrolled && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="text-xs text-amber-700 dark:text-amber-300">
+              <span className="font-semibold">Premium Course (₹{course.price ?? 500})</span>
+              <p className="mt-0.5 text-amber-600 dark:text-amber-400">
+                Payment integration coming soon. This course will be available for purchase in a future update.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Progress bar for in-progress courses */}
         {course.status === 'in_progress' && (
           <div className="mb-4">
@@ -107,12 +128,20 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
         )}
 
-        <Link href={`/learner/courses/${course.id}/learn`}>
-          <Button variant={btn.variant} className="w-full">
+        {/* CTA Button - disabled for paid courses, wrapped in Link for others */}
+        {isPaidAndNotEnrolled ? (
+          <Button variant={btn.variant} className="w-full cursor-not-allowed opacity-70" disabled>
             {btn.icon}
             {btn.label}
           </Button>
-        </Link>
+        ) : (
+          <Link href={`/learner/courses/${course.id}/learn`}>
+            <Button variant={btn.variant} className="w-full">
+              {btn.icon}
+              {btn.label}
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

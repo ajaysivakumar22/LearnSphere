@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/auth-context';
 
 export const TIMEZONES = [
   { label: 'UTC', value: 'UTC' },
@@ -43,19 +44,34 @@ const EMPTY_STREAK: StreakState = {
   todayCompleted: false,
 };
 
+/* ── User-specific storage keys ─────────────────────────────────── */
+
+function getStreakDataKey(userId: string | null): string {
+  return userId ? `streak_data_${userId}` : 'streak_data_guest';
+}
+
+function getStreakTimezoneKey(userId: string | null): string {
+  return userId ? `streak_timezone_${userId}` : 'streak_timezone_guest';
+}
+
 /* ── Standalone function (call from any page) ─────────────────────── */
 
 /**
  * Records a learning activity for today.
  * Safe to call multiple times — only the first call per calendar day
  * (in the selected timezone) increments the streak.
+ * 
+ * @param userId - The user's ID for user-specific storage
  */
-export function markLearningActivity(): void {
+export function markLearningActivity(userId: string | null = null): void {
   if (typeof window === 'undefined') return;
   try {
-    const tz = localStorage.getItem('streak_timezone') || 'UTC';
+    const tzKey = getStreakTimezoneKey(userId);
+    const dataKey = getStreakDataKey(userId);
+
+    const tz = localStorage.getItem(tzKey) || 'UTC';
     const today = getTodayInTimezone(tz);
-    const raw = localStorage.getItem('streak_data');
+    const raw = localStorage.getItem(dataKey);
     const saved: Partial<StreakState> = raw ? JSON.parse(raw) : {};
 
     if (saved.lastActiveDate === today) return; // already counted today
@@ -72,7 +88,7 @@ export function markLearningActivity(): void {
       lastActiveDate: today,
       todayCompleted: true,
     };
-    localStorage.setItem('streak_data', JSON.stringify(data));
+    localStorage.setItem(dataKey, JSON.stringify(data));
   } catch {
     /* SSR / private browsing */
   }
@@ -81,14 +97,22 @@ export function markLearningActivity(): void {
 /* ── React hook (use in components that render streak UI) ──────────── */
 
 export function useStreak() {
+  const { userId, isLoggedIn, isLoaded } = useAuth();
   const [timezone, setTimezone] = useState('UTC');
   const [streak, setStreak] = useState<StreakState>(EMPTY_STREAK);
 
+  // Get storage keys based on user ID
+  const dataKey = getStreakDataKey(isLoggedIn ? userId : null);
+  const tzKey = getStreakTimezoneKey(isLoggedIn ? userId : null);
+
   /** Read localStorage and reconcile with the given timezone. */
-  const refreshStreak = useCallback((tz: string) => {
+  const refreshStreak = useCallback((tz: string, key: string) => {
     try {
-      const raw = localStorage.getItem('streak_data');
-      if (!raw) return;
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        setStreak(EMPTY_STREAK);
+        return;
+      }
       const saved: StreakState = JSON.parse(raw);
       const today = getTodayInTimezone(tz);
       const todayCompleted = saved.lastActiveDate === today;
@@ -106,30 +130,32 @@ export function useStreak() {
         todayCompleted,
       });
     } catch {
-      /* ignore */
+      setStreak(EMPTY_STREAK);
     }
   }, []);
 
-  // Hydrate on mount
+  // Hydrate on mount and when user changes
   useEffect(() => {
-    const savedTz = localStorage.getItem('streak_timezone') || 'UTC';
+    if (!isLoaded) return;
+
+    const savedTz = localStorage.getItem(tzKey) || 'UTC';
     setTimezone(savedTz);
-    refreshStreak(savedTz);
-  }, [refreshStreak]);
+    refreshStreak(savedTz, dataKey);
+  }, [isLoaded, dataKey, tzKey, refreshStreak]);
 
   const changeTimezone = useCallback(
     (tz: string) => {
       setTimezone(tz);
-      localStorage.setItem('streak_timezone', tz);
-      refreshStreak(tz);
+      localStorage.setItem(tzKey, tz);
+      refreshStreak(tz, dataKey);
     },
-    [refreshStreak],
+    [tzKey, dataKey, refreshStreak],
   );
 
   const doMarkActivity = useCallback(() => {
-    markLearningActivity();
-    refreshStreak(timezone);
-  }, [timezone, refreshStreak]);
+    markLearningActivity(isLoggedIn ? userId : null);
+    refreshStreak(timezone, dataKey);
+  }, [isLoggedIn, userId, timezone, dataKey, refreshStreak]);
 
   return {
     timezone,

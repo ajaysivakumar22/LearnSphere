@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, LogOut } from 'lucide-react';
+import { GraduationCap, LogOut, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
+import { CourseAPIProvider } from '@/lib/course-api-context';
 import {
   Dialog,
   DialogContent,
@@ -27,27 +28,45 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
   const router = useRouter();
   const { logout, isLoggedIn, isLoaded, userRole } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
-  // Guard: wait for auth to load
+  // Determine authorization status (admin OR instructor can access)
+  const isAuthorized = isLoaded && isLoggedIn && (userRole === 'admin' || userRole === 'instructor');
+  const isUnauthorized = isLoaded && (!isLoggedIn || (userRole !== 'admin' && userRole !== 'instructor'));
+
+  // Handle redirect in useEffect to avoid calling router during render
+  useEffect(() => {
+    if (isUnauthorized && !isRedirecting) {
+      setIsRedirecting(true);
+      router.replace('/');
+    }
+  }, [isUnauthorized, isRedirecting, router]);
+
+  // Guard: show loading while auth is resolving
   if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading...</span>
+        </div>
       </div>
     );
   }
 
-  // Guard: must be signed in with admin or instructor role
-  if (!isLoggedIn || (userRole !== 'admin' && userRole !== 'instructor')) {
-    router.replace('/');
+  // Guard: show unauthorized message while redirecting
+  if (isUnauthorized || isRedirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Unauthorized — redirecting...</div>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Unauthorized — redirecting...</span>
+        </div>
       </div>
     );
   }
@@ -107,7 +126,11 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
         </DialogContent>
       </Dialog>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <CourseAPIProvider>
+          {children}
+        </CourseAPIProvider>
+      </main>
     </div>
   );
 }

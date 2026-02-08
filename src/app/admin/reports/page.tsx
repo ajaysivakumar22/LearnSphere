@@ -1,64 +1,40 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Search, ChevronRight, Users, Clock, TrendingUp, CheckCircle, BookOpen,
-  ArrowUp, ArrowDown, ArrowUpDown,
+  ArrowUp, ArrowDown, ArrowUpDown, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/* ----- Sample courses with reporting data ----- */
-const courses = [
-  {
-    id: '1',
-    title: 'Basics of Odoo CRM',
-    tags: ['CRM', 'Sales'],
-    totalParticipants: 8,
-    yetToStart: 5,
-    inProgress: 2,
-    completed: 1,
-    contents: 5,
-    duration: '2h 30m',
-    status: 'published' as const,
-  },
-  {
-    id: '2',
-    title: 'Introduction to Odoo AI',
-    tags: ['AI', 'Automation'],
-    totalParticipants: 12,
-    yetToStart: 3,
-    inProgress: 6,
-    completed: 3,
-    contents: 8,
-    duration: '4h 15m',
-    status: 'published' as const,
-  },
-  {
-    id: '3',
-    title: 'About Odoo Courses',
-    tags: ['eLearning'],
-    totalParticipants: 4,
-    yetToStart: 2,
-    inProgress: 1,
-    completed: 1,
-    contents: 3,
-    duration: '1h 10m',
-    status: 'draft' as const,
-  },
-  {
-    id: '4',
-    title: 'Advanced Sales & CRM Automation in Odoo',
-    tags: ['CRM', 'Automation', 'Advanced'],
-    totalParticipants: 6,
-    yetToStart: 4,
-    inProgress: 2,
-    completed: 0,
-    contents: 10,
-    duration: '5h 45m',
-    status: 'published' as const,
-  },
-];
+interface CourseReport {
+  id: string;
+  title: string;
+  tags: string[];
+  totalParticipants: number;
+  yetToStart: number;
+  inProgress: number;
+  completed: number;
+  contents: number;
+  duration: string;
+  status: 'published' | 'draft';
+}
+
+interface CourseFromAPI {
+  id: string;
+  title: string;
+  tags: string[];
+  isPublished: boolean;
+  duration: string;
+  contentsCount: number;
+  enrollments?: {
+    total: number;
+    yetToStart: number;
+    inProgress: number;
+    completed: number;
+  };
+}
 
 type SortKey = 'totalParticipants' | 'yetToStart' | 'inProgress' | 'completed';
 type SortDir = 'asc' | 'desc' | null;
@@ -67,6 +43,59 @@ export default function AdminReportsPage() {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [courses, setCourses] = useState<CourseReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch courses and enrollment stats from API
+  useEffect(() => {
+    async function fetchReportData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch courses
+        const coursesRes = await fetch('/api/courses');
+        if (!coursesRes.ok) throw new Error('Failed to fetch courses');
+        const coursesData: CourseFromAPI[] = await coursesRes.json();
+
+        // Fetch enrollment stats for each course
+        const reportsRes = await fetch('/api/reports/courses');
+        let enrollmentStats: Record<string, { total: number; yetToStart: number; inProgress: number; completed: number }> = {};
+
+        if (reportsRes.ok) {
+          const reportsData = await reportsRes.json();
+          enrollmentStats = reportsData.stats || {};
+        }
+
+        // Transform to report format
+        const reports: CourseReport[] = coursesData.map((course) => {
+          const stats = enrollmentStats[course.id] || { total: 0, yetToStart: 0, inProgress: 0, completed: 0 };
+          return {
+            id: course.id,
+            title: course.title,
+            tags: course.tags || [],
+            totalParticipants: stats.total,
+            yetToStart: stats.yetToStart,
+            inProgress: stats.inProgress,
+            completed: stats.completed,
+            contents: course.contentsCount || 0,
+            duration: course.duration || '0:00',
+            status: course.isPublished ? 'published' : 'draft',
+          };
+        });
+
+        setCourses(reports);
+      } catch (err) {
+        console.error('Error fetching report data:', err);
+        setError('Failed to load report data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchReportData();
+  }, []);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -98,7 +127,7 @@ export default function AdminReportsPage() {
     }
 
     return list;
-  }, [search, sortKey, sortDir]);
+  }, [search, sortKey, sortDir, courses]);
 
   // Totals across all courses
   const totals = courses.reduce(
@@ -117,6 +146,19 @@ export default function AdminReportsPage() {
     { label: 'In Progress', value: totals.inProgress, icon: TrendingUp, color: 'text-orange-500 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Completed', value: totals.completed, icon: CheckCircle, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/30' },
   ];
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading report data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -153,6 +195,12 @@ export default function AdminReportsPage() {
         </span>
       </div>
       <hr className="mb-4 border-red-300 dark:border-red-800" />
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-4 flex items-center gap-3">

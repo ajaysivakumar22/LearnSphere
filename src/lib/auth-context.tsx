@@ -11,7 +11,11 @@ interface AuthContextType {
   isLoaded: boolean;
   userRole: 'admin' | 'instructor' | 'learner' | null;
   userName: string | null;
+  userEmail: string | null;
+  userId: string | null;
   logout: () => void;
+  /** Force refresh user data from backend */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,7 +23,10 @@ const AuthContext = createContext<AuthContextType>({
   isLoaded: false,
   userRole: null,
   userName: null,
-  logout: () => {},
+  userEmail: null,
+  userId: null,
+  logout: () => { },
+  refreshUser: async () => { },
 });
 
 export function useAuth() {
@@ -35,7 +42,7 @@ function ClerkAuthSync({
   onAuthChange,
   signOutRef,
 }: {
-  onAuthChange: (signedIn: boolean, name: string | null) => void;
+  onAuthChange: (signedIn: boolean, name: string | null, email: string | null) => void;
   signOutRef: React.MutableRefObject<(() => Promise<void>) | null>;
 }) {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -51,9 +58,10 @@ function ClerkAuthSync({
     if (!isLoaded) return;
     if (isSignedIn && user) {
       const name = user.fullName || user.firstName || user.emailAddresses?.[0]?.emailAddress || 'User';
-      onAuthChange(true, name);
+      const email = user.emailAddresses?.[0]?.emailAddress || null;
+      onAuthChange(true, name, email);
     } else {
-      onAuthChange(false, null);
+      onAuthChange(false, null, null);
     }
   }, [isLoaded, isSignedIn, user, onAuthChange]);
 
@@ -67,6 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(!clerkAvailable); // If no Clerk, we're "loaded" immediately
   const [userRole, setUserRole] = useState<'admin' | 'instructor' | 'learner' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Ref to Clerk's signOut — populated by ClerkAuthSync
   const signOutRef = useRef<(() => Promise<void>) | null>(null);
@@ -77,42 +87,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('learnsphere-guest');
   }, []);
 
+  // Function to fetch user data from backend
+  const fetchUserData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) throw new Error('Failed to fetch role');
+      const data = await res.json();
+
+      const role = data.role;
+      if (role === 'admin' || role === 'instructor' || role === 'learner') {
+        setUserRole(role);
+      } else {
+        setUserRole('learner');
+      }
+
+      // Set additional user data from the API
+      if (data.name) setUserName(data.name);
+      if (data.email) setUserEmail(data.email);
+      if (data.id) setUserId(data.id);
+
+    } catch {
+      // Fallback to learner if DB is unreachable
+      setUserRole('learner');
+    }
+  }, []);
+
   // Callback for ClerkAuthSync to push state changes
-  const handleAuthChange = useCallback((signedIn: boolean, name: string | null) => {
+  const handleAuthChange = useCallback((signedIn: boolean, name: string | null, email: string | null) => {
     setIsLoggedIn(signedIn);
     setUserName(name);
+    setUserEmail(email);
+
     if (!signedIn) {
       setUserRole(null);
+      setUserId(null);
       setIsLoaded(true);
       return;
     }
+
     // Fetch actual role from DB via /api/auth/me
-    fetch('/api/auth/me')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch role');
-        return res.json();
-      })
-      .then((data) => {
-        const role = data.role;
-        if (role === 'admin' || role === 'instructor' || role === 'learner') {
-          setUserRole(role);
-        } else {
-          setUserRole('learner');
-        }
-      })
-      .catch(() => {
-        // Fallback to learner if DB is unreachable
-        setUserRole('learner');
-      })
-      .finally(() => {
-        setIsLoaded(true);
-      });
-  }, []);
+    fetchUserData().finally(() => {
+      setIsLoaded(true);
+    });
+  }, [fetchUserData]);
+
+  const refreshUser = useCallback(async () => {
+    if (isLoggedIn) {
+      await fetchUserData();
+    }
+  }, [isLoggedIn, fetchUserData]);
 
   const logout = useCallback(async () => {
     setIsLoggedIn(false);
     setUserRole(null);
     setUserName(null);
+    setUserEmail(null);
+    setUserId(null);
     // Sign out from Clerk
     if (signOutRef.current) {
       try {
@@ -124,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, isLoaded, userRole, userName, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, isLoaded, userRole, userName, userEmail, userId, logout, refreshUser }}>
       {clerkAvailable && (
         <ClerkAuthSync onAuthChange={handleAuthChange} signOutRef={signOutRef} />
       )}

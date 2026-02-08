@@ -16,14 +16,20 @@ import { cn } from '@/lib/utils';
 
 export default function AdminSettingsPage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const auth = useAuth();
+  const { userName, userEmail, logout } = useAuth();
   const router = useRouter();
 
-  // Profile
-  const [displayName, setDisplayName] = useState(auth.userName || 'Admin User');
-  const [profileEmail, setProfileEmail] = useState('admin@learnsphere.com');
+  // Profile - Initialize with auth context data
+  const [displayName, setDisplayName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
   const [bio, setBio] = useState('Platform administrator at LearnSphere');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
+  // Populate profile from auth context when loaded
+  useEffect(() => {
+    if (userName) setDisplayName(userName);
+    if (userEmail) setProfileEmail(userEmail);
+  }, [userName, userEmail]);
 
   // General / Account
   const [platformName, setPlatformName] = useState('LearnSphere');
@@ -49,7 +55,7 @@ export default function AdminSettingsPage() {
         if (prefs.course_completions !== undefined) setCompletionNotifications(prefs.course_completions);
         if (prefs.weekly_digest !== undefined) setWeeklyDigest(prefs.weekly_digest);
       }
-    } catch {}
+    } catch { }
     setNotificationsLoaded(true);
   }, []);
 
@@ -63,7 +69,7 @@ export default function AdminSettingsPage() {
         course_completions: completionNotifications,
         weekly_digest: weeklyDigest,
       }));
-    } catch {}
+    } catch { }
   }, [notificationsLoaded, emailNotifications, enrollmentNotifications, completionNotifications, weeklyDigest]);
 
   // Video preferences
@@ -84,7 +90,7 @@ export default function AdminSettingsPage() {
   ];
 
   const handleLogout = () => {
-    auth.logout();
+    logout();
     router.push('/');
   };
 

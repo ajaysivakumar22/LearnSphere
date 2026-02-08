@@ -21,11 +21,13 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { query } from '@/db';
 
-interface SyncedUser {
-  id: string;       // users.id  (UUID)
-  email: string;    // users.email
-  name: string;     // users.name
-  role: string;     // users.role (user_role enum)
+export interface SyncedUser {
+  id: string;           // users.id  (UUID)
+  email: string;        // users.email
+  name: string;         // users.name
+  role: string;         // users.role (user_role enum)
+  totalPoints: number;  // users.total_points
+  badgeLevel: string;   // users.badge_level
 }
 
 /**
@@ -62,7 +64,10 @@ export async function getOrCreateUserFromClerk(): Promise<SyncedUser | null> {
 
   // 3. Check if user already exists
   const { rows: existing } = await query<SyncedUser>(
-    'SELECT id, email, name, role FROM users WHERE email = $1',
+    `SELECT id, email, name, role, 
+            total_points AS "totalPoints", 
+            badge_level AS "badgeLevel" 
+     FROM users WHERE email = $1`,
     [email],
   );
 
@@ -76,7 +81,9 @@ export async function getOrCreateUserFromClerk(): Promise<SyncedUser | null> {
   const { rows: inserted } = await query<SyncedUser>(
     `INSERT INTO users (email, name, role, total_points, badge_level)
      VALUES ($1, $2, 'learner', 0, 'Newbie')
-     RETURNING id, email, name, role`,
+     RETURNING id, email, name, role, 
+               total_points AS "totalPoints", 
+               badge_level AS "badgeLevel"`,
     [email, name],
   );
 

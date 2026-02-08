@@ -127,7 +127,7 @@ export async function PUT(
 }
 
 // ────────────────────────────────────────────────────────────────
-// DELETE /api/courses/[id] (admin/instructor, must own)
+// DELETE /api/courses/[id] (admin: any course, instructor: own only)
 // ────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: Request,
@@ -144,10 +144,18 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const { rowCount } = await query(
-      'DELETE FROM courses WHERE id = $1 AND created_by = $2',
-      [id, user.id],
-    );
+    // Admin can delete ANY course, instructor can only delete their own
+    let rowCount: number | null;
+    if (user.role === 'admin') {
+      const result = await query('DELETE FROM courses WHERE id = $1', [id]);
+      rowCount = result.rowCount;
+    } else {
+      const result = await query(
+        'DELETE FROM courses WHERE id = $1 AND created_by = $2',
+        [id, user.id],
+      );
+      rowCount = result.rowCount;
+    }
 
     if (rowCount === 0) {
       return NextResponse.json(

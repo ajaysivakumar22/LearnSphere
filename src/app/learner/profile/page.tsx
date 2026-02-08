@@ -1,28 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sun, Moon, Monitor, Bell, Shield, User, Camera, HelpCircle,
   Settings, PlayCircle, Info, LogOut, ChevronRight, ExternalLink,
-  BookOpen, Trophy, Star, CheckCircle, Save,
+  BookOpen, Trophy, Star, CheckCircle, Save, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/shared/input';
 import { Label } from '@/components/shared/label';
 import { Switch } from '@/components/shared/switch';
 import { useTheme } from '@/lib/theme-context';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { userName, userEmail, userRole, isLoaded, isLoggedIn, logout } = useAuth();
   const router = useRouter();
 
-  // Profile
-  const [displayName, setDisplayName] = useState('Student User');
-  const [profileEmail, setProfileEmail] = useState('student@learnsphere.com');
+  // Profile - Initialize with auth context data
+  const [displayName, setDisplayName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
   const [bio, setBio] = useState('Passionate learner exploring new technologies and skills.');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
+  // Stats from API
+  const [stats, setStats] = useState({
+    enrolled: 0,
+    completed: 0,
+    points: 0,
+    avgRating: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // Account
   const [language, setLanguage] = useState('en');
@@ -47,6 +58,52 @@ export default function ProfilePage() {
   // Save
   const [saved, setSaved] = useState(false);
 
+  // Populate profile fields from auth context
+  useEffect(() => {
+    if (userName) setDisplayName(userName);
+    if (userEmail) setProfileEmail(userEmail);
+  }, [userName, userEmail]);
+
+  // Fetch user stats from API
+  useEffect(() => {
+    if (!isLoaded || !isLoggedIn) {
+      setStatsLoading(false);
+      return;
+    }
+
+    async function fetchStats() {
+      try {
+        // Fetch enrollments to get stats
+        const enrollRes = await fetch('/api/enrollments');
+        if (enrollRes.ok) {
+          const data = await enrollRes.json();
+          const enrollments = data.enrollments || [];
+          const completed = enrollments.filter((e: { status: string }) => e.status === 'completed').length;
+          setStats(prev => ({
+            ...prev,
+            enrolled: enrollments.length,
+            completed,
+          }));
+        }
+
+        // Fetch user profile for points
+        const meRes = await fetch('/api/auth/me');
+        if (meRes.ok) {
+          const userData = await meRes.json();
+          if (userData.totalPoints !== undefined) {
+            setStats(prev => ({ ...prev, points: userData.totalPoints }));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+      } finally {
+        setStatsLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, [isLoaded, isLoggedIn]);
+
   const themeOptions = [
     { value: 'light' as const, label: 'Light', icon: Sun },
     { value: 'dark' as const, label: 'Dark', icon: Moon },
@@ -58,6 +115,25 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
+
+  // Show loading while auth is loading
+  if (!isLoaded) {
+    return (
+      <div className="container mx-auto max-w-3xl px-4 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Settings</h1>
@@ -68,6 +144,16 @@ export default function ProfilePage() {
           <div className="mb-4 flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Profile</h2>
+            {userRole && (
+              <span className={cn(
+                "ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium",
+                userRole === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                  userRole === 'instructor' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+              )}>
+                {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+              </span>
+            )}
           </div>
           <div className="flex gap-6">
             <div className="shrink-0">
@@ -76,7 +162,7 @@ export default function ProfilePage() {
                   {profilePhoto ? (
                     <img src={profilePhoto} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
-                    displayName.charAt(0).toUpperCase()
+                    displayName.charAt(0).toUpperCase() || 'U'
                   )}
                 </div>
                 <label className="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">
@@ -101,7 +187,14 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <Label className="mb-1 block text-sm">Email</Label>
-                  <Input type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} />
+                  <Input
+                    type="email"
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    disabled
+                    className="bg-muted cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">Email is managed by your sign-in provider</p>
                 </div>
               </div>
               <div>
@@ -120,9 +213,9 @@ export default function ProfilePage() {
           {/* Stats */}
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: 'Enrolled', value: '4', icon: BookOpen, color: 'text-blue-500' },
-              { label: 'Completed', value: '1', icon: CheckCircle, color: 'text-green-500' },
-              { label: 'Points', value: '85', icon: Trophy, color: 'text-yellow-500' },
+              { label: 'Enrolled', value: statsLoading ? '...' : String(stats.enrolled), icon: BookOpen, color: 'text-blue-500' },
+              { label: 'Completed', value: statsLoading ? '...' : String(stats.completed), icon: CheckCircle, color: 'text-green-500' },
+              { label: 'Points', value: statsLoading ? '...' : String(stats.points), icon: Trophy, color: 'text-yellow-500' },
               { label: 'Avg Rating', value: '4.5', icon: Star, color: 'text-orange-500' },
             ].map((stat) => {
               const Icon = stat.icon;
@@ -394,7 +487,7 @@ export default function ProfilePage() {
         {/* ===== Logout ===== */}
         <div className="border-t border-border pt-4">
           <button
-            onClick={() => router.push('/')}
+            onClick={handleLogout}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
           >
             <LogOut className="h-4 w-4" />

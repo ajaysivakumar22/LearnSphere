@@ -22,6 +22,8 @@ export async function GET() {
       email: user.email,
       name: user.name,
       role: user.role,
+      totalPoints: user.totalPoints,
+      badgeLevel: user.badgeLevel,
     });
   } catch (err) {
     console.error('[GET /api/auth/me]', err);

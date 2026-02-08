@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Share2, Edit, ExternalLink, Copy, Check } from 'lucide-react';
+import { X, Share2, Edit, ExternalLink, Copy, Check, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import Link from 'next/link';
 import {
@@ -14,20 +14,28 @@ import {
   DialogFooter,
 } from '@/components/shared/dialog';
 import { Input } from '@/components/shared/input';
-import { useCourseStore, type Course } from '@/lib/course-store';
+import { useCourseAPI, type Course } from '@/lib/course-api-context';
+import { useAuth } from '@/lib/auth-context';
 
 export default function CourseKanban({ searchQuery, selectedTags = [] }: { searchQuery: string; selectedTags?: string[] }) {
-  const { courses, removeTag } = useCourseStore();
+  const { courses, loading, deleteCourse, togglePublish } = useCourseAPI();
+  const { userRole } = useAuth();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
+
+  const isAdmin = userRole === 'admin';
 
   const filtered = courses.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      (c.tags || []).some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesTags =
-      selectedTags.length === 0 || selectedTags.some((tag) => c.tags.includes(tag));
+      selectedTags.length === 0 || selectedTags.some((tag) => (c.tags || []).includes(tag));
     return matchesSearch && matchesTags;
   });
 
@@ -42,6 +50,45 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleDeleteClick = (course: Course) => {
+    setCourseToDelete(course);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!courseToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteCourse(courseToDelete.id);
+      setDeleteDialogOpen(false);
+      setCourseToDelete(null);
+    } catch (err) {
+      console.error('Error deleting course:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleTogglePublish = async (courseId: string) => {
+    setPublishing(courseId);
+    try {
+      await togglePublish(courseId);
+    } finally {
+      setPublishing(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading courses...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -61,19 +108,12 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
                   {course.title}
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {course.tags.map((tag) => (
+                  {(course.tags || []).map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 rounded bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700"
+                      className="inline-flex items-center gap-1 rounded bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                     >
                       {tag}
-                      <button
-                        onClick={() => removeTag(course.id, tag)}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-purple-200"
-                        title={`Remove ${tag}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
                     </span>
                   ))}
                 </div>
@@ -85,15 +125,15 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
                   <tbody>
                     <tr>
                       <td className="pr-4 text-muted-foreground">Views</td>
-                      <td className="font-medium text-foreground">{course.viewsCount}</td>
+                      <td className="font-medium text-foreground">{course.viewsCount || 0}</td>
                     </tr>
                     <tr>
                       <td className="pr-4 text-muted-foreground">Contents</td>
-                      <td className="font-medium text-foreground">{course.contentsCount}</td>
+                      <td className="font-medium text-foreground">{course.contentsCount || 0}</td>
                     </tr>
                     <tr>
                       <td className="pr-4 text-muted-foreground">Duration</td>
-                      <td className="font-medium text-foreground">{course.duration}</td>
+                      <td className="font-medium text-foreground">{course.duration || '0:00'}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -116,6 +156,30 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
                     Edit
                   </Button>
                 </Link>
+                <Button
+                  variant={course.isPublished ? 'outline' : 'default'}
+                  size="sm"
+                  className="min-w-[80px]"
+                  onClick={() => handleTogglePublish(course.id)}
+                  disabled={publishing === course.id}
+                >
+                  {publishing === course.id ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  {course.isPublished ? 'Unpublish' : 'Publish'}
+                </Button>
+                {/* Delete button - Admin only */}
+                {isAdmin && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="min-w-[80px]"
+                    onClick={() => handleDeleteClick(course)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                )}
               </div>
 
               {/* Published Ribbon */}
@@ -182,6 +246,36 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
           <DialogFooter>
             <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Course</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{courseToDelete?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  Delete
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

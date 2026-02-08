@@ -2,117 +2,131 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Flame, ChevronDown } from 'lucide-react';
+import { Search, Flame, ChevronDown, User, BookOpen, Loader2 } from 'lucide-react';
 import CourseCard from '@/components/learner/CourseCard';
 import BadgeDisplay from '@/components/learner/BadgeDisplay';
 import { useStreak } from '@/lib/useStreak';
+import { useAuth } from '@/lib/auth-context';
+import Link from 'next/link';
 
-const enrolledCourses = [
-  {
-    id: '1',
-    title: 'Basics of Odoo CRM',
-    description: 'Learn CRM fundamentals with Odoo. Build pipelines, manage leads, and automate your sales process.',
-    progress: 75,
-    lessonsCompleted: 9,
-    totalLessons: 12,
-    imageUrl: null,
-    status: 'in_progress' as const,
-    tags: ['CRM', 'Odoo'],
-  },
-  {
-    id: '2',
-    title: 'Advanced Python Programming',
-    description: 'Deep dive into Python with advanced concepts and real-world projects.',
-    progress: 100,
-    lessonsCompleted: 24,
-    totalLessons: 24,
-    imageUrl: null,
-    status: 'completed' as const,
-    tags: ['Python', 'Programming'],
-  },
-  {
-    id: '3',
-    title: 'Web Development Masterclass',
-    description: 'Complete web development course covering HTML, CSS, JavaScript, and React.',
-    progress: 0,
-    lessonsCompleted: 0,
-    totalLessons: 32,
-    imageUrl: null,
-    status: 'not_started' as const,
-    tags: ['Web', 'React'],
-    isPaid: true,
-    price: 500,
-  },
-  {
-    id: '4',
-    title: 'Data Science Essentials',
-    description: 'Introduction to data science and analytics with hands-on projects.',
-    progress: 20,
-    lessonsCompleted: 3,
-    totalLessons: 16,
-    imageUrl: null,
-    status: 'in_progress' as const,
-    tags: ['Data Science', 'ML'],
-  },
-];
+interface EnrolledCourse {
+  id: string;
+  title: string;
+  description: string;
+  progress: number;
+  lessonsCompleted: number;
+  totalLessons: number;
+  imageUrl: string | null;
+  status: 'in_progress' | 'completed' | 'not_started';
+  tags?: string[];
+  isPaid?: boolean;
+  price?: number;
+}
 
 export default function MyCoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { isLoggedIn, isLoaded } = useAuth();
   const {
     timezone, timezones, currentStreak, longestStreak,
     todayCompleted, changeTimezone,
   } = useStreak();
 
-  type CourseStatus = 'in_progress' | 'completed' | 'not_started';
-  type EnrolledCourse = typeof enrolledCourses[number] & { status: CourseStatus };
-  const [courses, setCourses] = useState<EnrolledCourse[]>(enrolledCourses as EnrolledCourse[]);
+  const [courses, setCourses] = useState<EnrolledCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sync sample completed courses and load progress from localStorage
+  // Fetch user's enrolled courses from the API
   useEffect(() => {
-    try {
-      const existing: string[] = JSON.parse(localStorage.getItem('completedCourses') || '[]');
-      const fromData = enrolledCourses
-        .filter(c => c.status === 'completed')
-        .map(c => c.id);
-      const merged = [...new Set([...existing, ...fromData])];
-      localStorage.setItem('completedCourses', JSON.stringify(merged));
+    if (!isLoaded || !isLoggedIn) {
+      setLoading(false);
+      return;
+    }
 
-      // Update course progress from localStorage
-      setCourses(enrolledCourses.map(course => {
-        // Check if course is completed
-        if (merged.includes(course.id)) {
-          return { ...course, progress: 100, status: 'completed' as const, lessonsCompleted: course.totalLessons };
+    async function fetchEnrollments() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch('/api/enrollments');
+        if (!res.ok) {
+          if (res.status === 401) {
+            setError('Please sign in to view your courses');
+            return;
+          }
+          throw new Error('Failed to fetch enrollments');
         }
-        // Check for saved progress
-        const savedProgress = localStorage.getItem(`courseProgress_${course.id}`);
-        if (savedProgress) {
-          try {
-            const data = JSON.parse(savedProgress) as { completedCount: number; totalContents: number; progressPct: number };
-            return {
-              ...course,
-              progress: data.progressPct,
-              lessonsCompleted: data.completedCount,
-              totalLessons: data.totalContents,
-              status: (data.progressPct >= 100 ? 'completed' : data.progressPct > 0 ? 'in_progress' : course.status) as CourseStatus,
-            };
-          } catch {}
-        }
-        return course;
-      }) as EnrolledCourse[]);
-    } catch {}
-  }, []);
+
+        const data = await res.json();
+        setCourses(data.enrollments || []);
+      } catch (err) {
+        console.error('Error fetching enrollments:', err);
+        setError('Failed to load your courses. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchEnrollments();
+  }, [isLoaded, isLoggedIn]);
 
   const filteredCourses = courses.filter((c) =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Show loading state
+  if (!isLoaded || loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading your courses...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt for unauthenticated users
+  if (!isLoggedIn) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+            <User className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Sign in to view your courses</h2>
+          <p className="text-muted-foreground text-center mb-6">
+            Track your progress, earn points, and continue learning from where you left off.
+          </p>
+          <Link
+            href="/sign-in"
+            className="rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex gap-8">
         {/* Main Content */}
         <div className="min-w-0 flex-1">
-          <h1 className="mb-6 text-3xl font-bold text-foreground">My Courses</h1>
+          <h1 className="mb-4 text-3xl font-bold text-foreground">My Courses</h1>
+
+          {/* User-Specific Data Notice */}
+          <div className="mb-6 flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Your personal dashboard</span> — Progress, enrollments, and completions shown here are private to your account.
+            </p>
+          </div>
 
           {/* Streak Indicator */}
           <div className="mb-6 flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -156,23 +170,42 @@ export default function MyCoursesPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCourses.map((course, index) => (
-              <motion.div
-                key={course.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <CourseCard course={course} />
-              </motion.div>
-            ))}
-          </div>
+          {/* Error State */}
+          {error && (
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+              {error}
+            </div>
+          )}
 
-          {filteredCourses.length === 0 && (
+          {/* Course Grid */}
+          {filteredCourses.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredCourses.map((course, index) => (
+                <motion.div
+                  key={course.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <CourseCard course={course} />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
-              <p className="text-lg text-muted-foreground">No courses found.</p>
-              <p className="text-sm text-muted-foreground">Try a different search or explore new courses!</p>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+                <BookOpen className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-lg font-medium text-foreground mb-2">No courses enrolled yet</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Explore our catalog and enroll in courses to start learning!
+              </p>
+              <Link
+                href="/learner/explore"
+                className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Browse Courses
+              </Link>
             </div>
           )}
         </div>
