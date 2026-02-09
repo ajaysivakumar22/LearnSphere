@@ -72,7 +72,7 @@ export default function InstructorCoursesPage() {
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    await createCourse(newTitle.trim(), '', [], undefined, undefined);
+    await createCourse(newTitle.trim(), '', []);
     setNewTitle('');
     setShowCreateDialog(false);
   };

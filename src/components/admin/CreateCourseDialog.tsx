@@ -65,9 +65,7 @@ export default function CreateCourseDialog({ open, onOpenChange }: CreateCourseD
       const course = await createCourse(
         title.trim(),
         description.trim(),
-        tags,
-        scheduledDate || undefined,
-        assignedInstructor || undefined
+        tags
       );
       if (course) {
         onOpenChange(false);

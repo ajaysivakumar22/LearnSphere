@@ -147,230 +147,275 @@ export default function InstructorDashboardPage() {
                 </Link>
             </div>
 
-            {/* KPI Cards */}
-            <div className="mb-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30">
-                            <BookOpen className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">My Courses</p>
-                            <p className="text-3xl font-bold text-foreground">{stats.totalCourses}</p>
-                        </div>
+            {/* Empty State - Show when no courses exist */}
+            {instructorCourses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 px-8 py-20">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+                        <BookOpen className="h-10 w-10 text-primary" />
                     </div>
-                    <div className="mt-4 flex gap-4 text-sm">
-                        <span className="text-green-600">{stats.publishedCourses} Published</span>
-                        <span className="text-orange-500">{stats.draftCourses} Drafts</span>
-                    </div>
-                </div>
+                    <h2 className="mb-3 text-2xl font-bold text-foreground">Create Your First Course</h2>
+                    <p className="mb-8 max-w-md text-center text-muted-foreground">
+                        You haven&apos;t created any courses yet. Start sharing your knowledge with learners around the world by creating your first course.
+                    </p>
 
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
-                            <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Total Enrollments</p>
-                            <p className="text-3xl font-bold text-foreground">{stats.totalEnrollments}</p>
-                        </div>
-                    </div>
-                    <p className="mt-4 text-sm text-muted-foreground">Across all your courses</p>
-                </div>
-
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
-                            <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Active Learners</p>
-                            <p className="text-3xl font-bold text-foreground">{stats.totalInProgress}</p>
-                        </div>
-                    </div>
-                    <p className="mt-4 text-sm text-muted-foreground">Currently in progress</p>
-                </div>
-
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="rounded-lg bg-amber-100 p-3 dark:bg-amber-900/30">
-                            <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Completion Rate</p>
-                            <p className="text-3xl font-bold text-foreground">{stats.completionRate}%</p>
-                        </div>
-                    </div>
-                    <p className="mt-4 text-sm text-muted-foreground">{stats.totalCompletions} completions</p>
-                </div>
-            </div>
-
-            {/* Charts Row */}
-            <div className="mb-8 grid gap-6 lg:grid-cols-2">
-                {/* Enrollment Trends Bar Chart */}
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="mb-6 flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-foreground">Enrollment Trends</h2>
-                    </div>
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: 'hsl(var(--card))',
-                                        border: '1px solid hsl(var(--border))',
-                                        borderRadius: 8,
-                                    }}
-                                />
-                                <Bar dataKey="enrollments" fill="#8B5CF6" radius={[4, 4, 0, 0]} name="Enrollments" />
-                                <Bar dataKey="completions" fill="#10B981" radius={[4, 4, 0, 0]} name="Completions" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Course Status & Progress Pie Charts */}
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                    <h2 className="mb-6 text-lg font-semibold text-foreground">Course & Learner Overview</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Course Status */}
-                        <div>
-                            <h3 className="mb-2 text-center text-sm font-medium text-muted-foreground">Course Status</h3>
-                            <div className="h-48">
-                                {courseStatusData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={courseStatusData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={40}
-                                                outerRadius={70}
-                                                paddingAngle={2}
-                                                dataKey="value"
-                                                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                                                labelLine={false}
-                                            >
-                                                {courseStatusData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.name === 'Published' ? STATUS_COLORS.published : STATUS_COLORS.draft} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                        No courses yet
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Learner Progress */}
-                        <div>
-                            <h3 className="mb-2 text-center text-sm font-medium text-muted-foreground">Learner Progress</h3>
-                            <div className="h-48">
-                                {progressData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={progressData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={40}
-                                                outerRadius={70}
-                                                paddingAngle={2}
-                                                dataKey="value"
-                                                label={({ name, percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
-                                                labelLine={false}
-                                            >
-                                                {progressData.map((entry, index) => {
-                                                    let color = PROGRESS_COLORS.yetToStart;
-                                                    if (entry.name === 'In Progress') color = PROGRESS_COLORS.inProgress;
-                                                    if (entry.name === 'Completed') color = PROGRESS_COLORS.completed;
-                                                    return <Cell key={`cell-${index}`} fill={color} />;
-                                                })}
-                                            </Pie>
-                                            <Tooltip />
-                                            <Legend />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                        No enrollments yet
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="rounded-xl border bg-card p-6 shadow-sm">
-                <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
-                <div className="flex flex-wrap gap-3">
                     <Link href="/instructor/courses">
-                        <Button variant="outline" className="gap-2">
-                            <BookOpen className="h-4 w-4" />
-                            Manage Courses
+                        <Button variant="odoo" size="lg" className="gap-2">
+                            <Plus className="h-5 w-5" />
+                            Create Your First Course
                         </Button>
                     </Link>
-                    <Link href="/instructor/reports">
-                        <Button variant="outline" className="gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            View Reports
-                        </Button>
-                    </Link>
-                    <Link href="/instructor/settings">
-                        <Button variant="outline" className="gap-2">
-                            <Eye className="h-4 w-4" />
-                            Settings
-                        </Button>
-                    </Link>
-                </div>
-            </div>
 
-            {/* Recent Courses List */}
-            {instructorCourses.length > 0 && (
-                <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-foreground">Your Recent Courses</h2>
-                        <Link href="/instructor/courses" className="text-sm text-primary hover:underline">
-                            View All
-                        </Link>
-                    </div>
-                    <div className="space-y-3">
-                        {instructorCourses.slice(0, 5).map(course => {
-                            const stat = enrollmentStats[course.id];
-                            return (
-                                <div key={course.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-bold text-white">
-                                            {course.title.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-foreground">{course.title}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {stat?.total || 0} enrolled · {stat?.completed || 0} completed
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${course.isPublished
-                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                                        }`}>
-                                        {course.isPublished ? 'Published' : 'Draft'}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                    {/* Quick Tips */}
+                    <div className="mt-12 grid max-w-2xl gap-4 sm:grid-cols-3">
+                        <div className="rounded-lg border bg-card p-4 text-center">
+                            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+                                <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <h3 className="mb-1 text-sm font-semibold text-foreground">Rich Content</h3>
+                            <p className="text-xs text-muted-foreground">Add videos, documents, and quizzes to engage learners</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-4 text-center">
+                            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <h3 className="mb-1 text-sm font-semibold text-foreground">Track Progress</h3>
+                            <p className="text-xs text-muted-foreground">Monitor learner engagement and completion rates</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-4 text-center">
+                            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                                <Award className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            </div>
+                            <h3 className="mb-1 text-sm font-semibold text-foreground">Earn Recognition</h3>
+                            <p className="text-xs text-muted-foreground">Get reviews and build your instructor reputation</p>
+                        </div>
                     </div>
                 </div>
+            ) : (
+                <>
+                    {/* KPI Cards */}
+                    <div className="mb-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30">
+                                    <BookOpen className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">My Courses</p>
+                                    <p className="text-3xl font-bold text-foreground">{stats.totalCourses}</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex gap-4 text-sm">
+                                <span className="text-green-600">{stats.publishedCourses} Published</span>
+                                <span className="text-orange-500">{stats.draftCourses} Drafts</span>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
+                                    <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Total Enrollments</p>
+                                    <p className="text-3xl font-bold text-foreground">{stats.totalEnrollments}</p>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-sm text-muted-foreground">Across all your courses</p>
+                        </div>
+
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
+                                    <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Active Learners</p>
+                                    <p className="text-3xl font-bold text-foreground">{stats.totalInProgress}</p>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-sm text-muted-foreground">Currently in progress</p>
+                        </div>
+
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-amber-100 p-3 dark:bg-amber-900/30">
+                                    <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Completion Rate</p>
+                                    <p className="text-3xl font-bold text-foreground">{stats.completionRate}%</p>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-sm text-muted-foreground">{stats.totalCompletions} completions</p>
+                        </div>
+                    </div>
+
+                    {/* Charts Row */}
+                    <div className="mb-8 grid gap-6 lg:grid-cols-2">
+                        {/* Enrollment Trends Bar Chart */}
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <div className="mb-6 flex items-center gap-3">
+                                <BarChart3 className="h-5 w-5 text-primary" />
+                                <h2 className="text-lg font-semibold text-foreground">Enrollment Trends</h2>
+                            </div>
+                            <div className="h-72">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                                        <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--card))',
+                                                border: '1px solid hsl(var(--border))',
+                                                borderRadius: 8,
+                                            }}
+                                        />
+                                        <Bar dataKey="enrollments" fill="#8B5CF6" radius={[4, 4, 0, 0]} name="Enrollments" />
+                                        <Bar dataKey="completions" fill="#10B981" radius={[4, 4, 0, 0]} name="Completions" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Course Status & Progress Pie Charts */}
+                        <div className="rounded-xl border bg-card p-6 shadow-sm">
+                            <h2 className="mb-6 text-lg font-semibold text-foreground">Course & Learner Overview</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Course Status */}
+                                <div>
+                                    <h3 className="mb-2 text-center text-sm font-medium text-muted-foreground">Course Status</h3>
+                                    <div className="h-48">
+                                        {courseStatusData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={courseStatusData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={70}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                                        labelLine={false}
+                                                    >
+                                                        {courseStatusData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.name === 'Published' ? STATUS_COLORS.published : STATUS_COLORS.draft} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                                No courses yet
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Learner Progress */}
+                                <div>
+                                    <h3 className="mb-2 text-center text-sm font-medium text-muted-foreground">Learner Progress</h3>
+                                    <div className="h-48">
+                                        {progressData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={progressData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={70}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                        label={({ name, percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                                                        labelLine={false}
+                                                    >
+                                                        {progressData.map((entry, index) => {
+                                                            let color = PROGRESS_COLORS.yetToStart;
+                                                            if (entry.name === 'In Progress') color = PROGRESS_COLORS.inProgress;
+                                                            if (entry.name === 'Completed') color = PROGRESS_COLORS.completed;
+                                                            return <Cell key={`cell-${index}`} fill={color} />;
+                                                        })}
+                                                    </Pie>
+                                                    <Tooltip />
+                                                    <Legend />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                                No enrollments yet
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
+                        <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
+                        <div className="flex flex-wrap gap-3">
+                            <Link href="/instructor/courses">
+                                <Button variant="outline" className="gap-2">
+                                    <BookOpen className="h-4 w-4" />
+                                    Manage Courses
+                                </Button>
+                            </Link>
+                            <Link href="/instructor/reports">
+                                <Button variant="outline" className="gap-2">
+                                    <BarChart3 className="h-4 w-4" />
+                                    View Reports
+                                </Button>
+                            </Link>
+                            <Link href="/instructor/settings">
+                                <Button variant="outline" className="gap-2">
+                                    <Eye className="h-4 w-4" />
+                                    Settings
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Recent Courses List */}
+                    <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-foreground">Your Recent Courses</h2>
+                            <Link href="/instructor/courses" className="text-sm text-primary hover:underline">
+                                View All
+                            </Link>
+                        </div>
+                        <div className="space-y-3">
+                            {instructorCourses.slice(0, 5).map(course => {
+                                const stat = enrollmentStats[course.id];
+                                return (
+                                    <div key={course.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-bold text-white">
+                                                {course.title.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-foreground">{course.title}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {stat?.total || 0} enrolled · {stat?.completed || 0} completed
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${course.isPublished
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                            }`}>
+                                            {course.isPublished ? 'Published' : 'Draft'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );

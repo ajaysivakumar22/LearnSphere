@@ -87,11 +87,10 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
         }
 
         setOptions(resolvedParams.id, {
-          scheduledPublishDate: course.scheduledPublishDate,
-          assignedInstructor: course.assignedInstructor,
-          price: course.price,
-          currency: course.currency,
-          isPaid: course.isPaid,
+          scheduledPublishDate: course.scheduledPublishDate ?? undefined,
+          assignedInstructor: course.assignedInstructor ?? undefined,
+          price: course.price ?? 0,
+          isPaid: course.isPaid ?? false,
         });
 
         initId.current = resolvedParams.id;
@@ -294,10 +293,8 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
       isPublished,
       description: storeDescription,
       imageUrl: courseImage,
-      imageUrl: courseImage,
       assignedInstructor: responsible,
       price: storeOptions?.price,
-      currency: storeOptions?.currency || 'INR',
       isPaid: storeOptions?.isPaid,
     });
 

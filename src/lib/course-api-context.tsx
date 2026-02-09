@@ -20,11 +20,12 @@ export interface Course {
     createdBy: string;
     createdAt: string;
     creatorRole?: string;
-    scheduledPublishDate?: string;
-    assignedInstructor?: string;
-    price: number;
-    currency: string;
-    isPaid: boolean;
+    // Optional fields that may or may not be in the database
+    scheduledPublishDate?: string | null;
+    assignedInstructor?: string | null;
+    price?: number;
+    currency?: string;
+    isPaid?: boolean;
 }
 
 interface CourseAPIContextType {
@@ -32,7 +33,7 @@ interface CourseAPIContextType {
     loading: boolean;
     error: string | null;
     refresh: (forceRefresh?: boolean) => Promise<void>;
-    createCourse: (title: string, description?: string, tags?: string[], scheduledPublishDate?: string, assignedInstructor?: string, price?: number, currency?: string, isPaid?: boolean) => Promise<Course | null>;
+    createCourse: (title: string, description?: string, tags?: string[]) => Promise<Course | null>;
     updateCourse: (id: string, updates: Partial<Course>) => Promise<Course | null>;
     deleteCourse: (id: string) => Promise<boolean>;
     togglePublish: (id: string) => Promise<boolean>;
@@ -139,18 +140,12 @@ export function CourseAPIProvider({ children }: { children: React.ReactNode }) {
     }, [refresh]);
 
     // Optimized create with instant UI update
-    const createCourse = useCallback(async (title: string, description?: string, tags?: string[], scheduledPublishDate?: string, assignedInstructor?: string, price?: number, currency?: string, isPaid?: boolean): Promise<Course | null> => {
+    const createCourse = useCallback(async (title: string, description?: string, tags?: string[]): Promise<Course | null> => {
         try {
             const res = await fetch('/api/courses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title, description, tags,
-                    scheduledPublishDate, assignedInstructor,
-                    price: price ?? 0,
-                    currency: currency ?? 'INR',
-                    isPaid: isPaid ?? false
-                }),
+                body: JSON.stringify({ title, description, tags }),
             });
 
             if (!res.ok) {

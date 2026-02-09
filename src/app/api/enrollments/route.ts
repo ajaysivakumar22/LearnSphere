@@ -25,16 +25,11 @@ interface EnrollmentRow {
   title: string;
   description: string;
   imageUrl: string | null;
-  isPaid: boolean;
-  price: number | null;
   totalLessons: string;
-  lessonsCompleted: string;
 }
 
 interface CourseRow {
   id: string;
-  is_paid: boolean;
-  price: number | null;
 }
 
 interface ExistingEnrollmentRow {
@@ -73,13 +68,8 @@ export async function GET() {
          e.completed_at AS "completedAt",
          c.title,
          c.description,
-         c.thumbnail_url AS "imageUrl",
-         c.is_paid AS "isPaid",
-         c.price,
-         (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id) AS "totalLessons",
-         (SELECT COUNT(*) FROM lesson_progress lp 
-          JOIN lessons l ON l.id = lp.lesson_id 
-          WHERE l.course_id = c.id AND lp.user_id = $1 AND lp.is_completed = true) AS "lessonsCompleted"
+         c.image_url AS "imageUrl",
+         (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id) AS "totalLessons"
        FROM enrollments e
        JOIN courses c ON c.id = e.course_id
        WHERE e.user_id = $1
@@ -94,7 +84,7 @@ export async function GET() {
       title: row.title,
       description: row.description || '',
       progress: row.progressPct || 0,
-      lessonsCompleted: parseInt(row.lessonsCompleted) || 0,
+      lessonsCompleted: Math.round((row.progressPct / 100) * parseInt(row.totalLessons)) || 0,
       totalLessons: parseInt(row.totalLessons) || 0,
       imageUrl: row.imageUrl,
       status: row.status === 'completed'
@@ -102,8 +92,6 @@ export async function GET() {
         : row.progressPct > 0
           ? 'in_progress'
           : 'not_started',
-      isPaid: row.isPaid,
-      price: row.price,
     }));
 
     return NextResponse.json({ enrollments });
@@ -139,23 +127,13 @@ export async function POST(request: Request) {
 
     // Verify the course exists and is published
     const { rows: courseRows } = await query<CourseRow>(
-      'SELECT id, is_paid, price FROM courses WHERE id = $1 AND is_published = true',
+      'SELECT id FROM courses WHERE id = $1 AND is_published = true',
       [courseId],
     );
     if (courseRows.length === 0) {
       return NextResponse.json(
         { error: 'Course not found or not available' },
         { status: 404 },
-      );
-    }
-
-    const course = courseRows[0];
-
-    // Block enrollment for paid courses (demo mode)
-    if (course.is_paid) {
-      return NextResponse.json(
-        { error: 'Payment integration coming soon. Paid courses cannot be enrolled in demo mode.' },
-        { status: 400 },
       );
     }
 

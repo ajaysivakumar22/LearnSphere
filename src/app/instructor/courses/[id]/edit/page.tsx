@@ -54,8 +54,8 @@ export default function InstructorCourseEditorPage({ params }: { params: Promise
         setStoreDescription(resolvedParams.id, course.description);
       }
       setOptions(resolvedParams.id, {
-        scheduledPublishDate: course.scheduledPublishDate,
-        assignedInstructor: course.assignedInstructor,
+        scheduledPublishDate: course.scheduledPublishDate ?? undefined,
+        assignedInstructor: course.assignedInstructor ?? undefined,
       });
       initId.current = resolvedParams.id;
     }

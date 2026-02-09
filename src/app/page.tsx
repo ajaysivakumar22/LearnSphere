@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
@@ -8,13 +8,15 @@ import {
   GraduationCap, BookOpen, Brain, Trophy, Sparkles, ArrowRight,
   CheckCircle2, Users, Laptop, Zap, Globe, Star, ShieldCheck
 } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
 
 export default function HomePage() {
   const { isLoggedIn, userRole, isLoaded } = useAuth();
   const router = useRouter();
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isLoggedIn) {
@@ -23,34 +25,6 @@ export default function HomePage() {
       else router.replace('/learner/my-courses');
     }
   }, [isLoaded, isLoggedIn, userRole, router]);
-
-  const floatingVariants = {
-    initial: { y: 0, opacity: 0 },
-    animate: {
-      y: [0, -20, 0],
-      opacity: 1,
-      transition: {
-        duration: 4,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }
-    }
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 }
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
@@ -61,7 +35,7 @@ export default function HomePage() {
         <div className="absolute bottom-[10%] left-[20%] h-[600px] w-[600px] rounded-full bg-pink-500/10 blur-[120px]" />
       </div>
 
-      {/* Navbar Placeholder (if global nav isn't handling it) */}
+      {/* Navbar */}
       <nav className="absolute top-0 w-full p-6 flex justify-between items-center z-50">
         <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -83,34 +57,33 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-4 pt-20 pb-32 overflow-hidden">
-        {/* Floating Icons */}
-        <motion.div className="absolute left-[10%] top-[25%] hidden lg:block" variants={floatingVariants} initial="initial" animate="animate">
-          <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-            <BookOpen className="h-8 w-8 text-blue-400" />
-          </div>
-        </motion.div>
-        <motion.div className="absolute right-[12%] top-[20%] hidden lg:block" variants={floatingVariants} initial="initial" animate="animate" transition={{ delay: 1 }}>
-          <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-            <Trophy className="h-8 w-8 text-yellow-400" />
-          </div>
-        </motion.div>
-        <motion.div className="absolute bottom-[20%] left-[15%] hidden lg:block" variants={floatingVariants} initial="initial" animate="animate" transition={{ delay: 1.5 }}>
-          <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-            <Brain className="h-8 w-8 text-purple-400" />
-          </div>
-        </motion.div>
-        <motion.div className="absolute bottom-[25%] right-[18%] hidden lg:block" variants={floatingVariants} initial="initial" animate="animate" transition={{ delay: 2 }}>
-          <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-            <Sparkles className="h-8 w-8 text-pink-400" />
-          </div>
-        </motion.div>
+        {/* Floating Icons - Only render after mount to avoid hydration issues */}
+        {mounted && (
+          <>
+            <div className="absolute left-[10%] top-[25%] hidden lg:block animate-float">
+              <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                <BookOpen className="h-8 w-8 text-blue-400" />
+              </div>
+            </div>
+            <div className="absolute right-[12%] top-[20%] hidden lg:block animate-float" style={{ animationDelay: '1s' }}>
+              <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                <Trophy className="h-8 w-8 text-yellow-400" />
+              </div>
+            </div>
+            <div className="absolute bottom-[20%] left-[15%] hidden lg:block animate-float" style={{ animationDelay: '1.5s' }}>
+              <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                <Brain className="h-8 w-8 text-purple-400" />
+              </div>
+            </div>
+            <div className="absolute bottom-[25%] right-[18%] hidden lg:block animate-float" style={{ animationDelay: '2s' }}>
+              <div className="p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                <Sparkles className="h-8 w-8 text-pink-400" />
+              </div>
+            </div>
+          </>
+        )}
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-4xl mx-auto z-10"
-        >
+        <div className="text-center max-w-4xl mx-auto z-10 animate-fade-in-up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-8">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -141,7 +114,7 @@ export default function HomePage() {
               </button>
             </Link>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* Trusted By (Mock) */}
@@ -159,25 +132,14 @@ export default function HomePage() {
       {/* Features Grid */}
       <section id="features" className="py-32 relative">
         <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
+          <div className="text-center mb-20 animate-fade-in-up">
             <h2 className="text-4xl font-bold mb-4">Everything you need to succeed</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Powerful features tailored for Instructors, Admins, and Learners to ensure a seamless educational journey.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: Laptop, title: 'Interactive Course Builder', desc: 'Drag-and-drop lessons, rich text editing, and media integration.' },
               { icon: Zap, title: 'Instant Quizzes', desc: 'Auto-graded assessments to test knowledge retention immediately.' },
@@ -186,10 +148,10 @@ export default function HomePage() {
               { icon: Trophy, title: 'Gamified Progress', desc: 'Earn badges, track streaks, and climb the leaderboard.' },
               { icon: Users, title: 'Community Driven', desc: 'Connect with peers and instructors through course discussions.' },
             ].map((feat, i) => (
-              <motion.div
+              <div
                 key={i}
-                variants={itemVariants}
                 className="group p-8 rounded-3xl bg-card border border-border hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500"
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
                   <feat.icon className="w-7 h-7" />
@@ -198,9 +160,9 @@ export default function HomePage() {
                 <p className="text-muted-foreground leading-relaxed">
                   {feat.desc}
                 </p>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -230,10 +192,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="relative">
-              <motion.div
-                style={{ y }}
-                className="rounded-2xl border bg-background p-8 shadow-2xl space-y-6"
-              >
+              <div className="rounded-2xl border bg-background p-8 shadow-2xl space-y-6">
                 <div className="flex justify-between items-center border-b pb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Learners</p>
@@ -255,7 +214,7 @@ export default function HomePage() {
                   </div>
                   <Star className="w-10 h-10 text-yellow-500/50" />
                 </div>
-              </motion.div>
+              </div>
               {/* Decor blobs */}
               <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-tr from-purple-500/20 to-blue-500/20 blur-3xl rounded-full" />
             </div>
@@ -265,12 +224,7 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="py-32 px-4 text-center">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          whileInView={{ scale: 1, opacity: 1 }}
-          viewport={{ once: true }}
-          className="max-w-4xl mx-auto rounded-[3rem] bg-gradient-to-br from-purple-900 to-indigo-900 p-12 md:p-20 relative overflow-hidden"
-        >
+        <div className="max-w-4xl mx-auto rounded-[3rem] bg-gradient-to-br from-purple-900 to-indigo-900 p-12 md:p-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
           <div className="absolute -top-20 -right-20 w-96 h-96 bg-pink-500/30 blur-[100px] rounded-full" />
           <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-blue-500/30 blur-[100px] rounded-full" />
@@ -286,7 +240,7 @@ export default function HomePage() {
               </button>
             </Link>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* Footer */}
@@ -299,9 +253,9 @@ export default function HomePage() {
             <span className="font-bold text-foreground">LearnSphere</span>
           </div>
           <div className="flex gap-8">
-            <a href="#" className="hover:text-foreground">Privacy</a>
-            <a href="#" className="hover:text-foreground">Terms</a>
-            <a href="#" className="hover:text-foreground">Support</a>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <a href="mailto:support@learnsphere.com" className="hover:text-foreground transition-colors">Support</a>
           </div>
           <div>
             &copy; {new Date().getFullYear()} LearnSphere. All rights reserved.

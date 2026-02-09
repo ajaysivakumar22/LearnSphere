@@ -186,17 +186,17 @@ export default function ProfilePage() {
       <div className="sticky top-20 z-30 mb-8 border-b bg-card shadow-sm">
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex w-full items-center justify-between px-4 py-4 text-left"
+          className="flex w-full items-center gap-3 px-4 py-4 text-left"
         >
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Jump to:</span>
-            <span className="font-semibold text-foreground">{SECTIONS.find(s => s.id === activeSection)?.label}</span>
-          </div>
           {dropdownOpen ? (
             <ChevronRight className="h-4 w-4 rotate-90 text-muted-foreground transition-transform" />
           ) : (
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
           )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Jump to:</span>
+            <span className="font-semibold text-foreground">{SECTIONS.find(s => s.id === activeSection)?.label}</span>
+          </div>
         </button>
 
         {/* Dropdown Menu */}
@@ -223,6 +223,15 @@ export default function ProfilePage() {
                 </button>
               );
             })}
+
+            {/* Logout Button in Dropdown */}
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Log Out</span>
+            </button>
           </div>
         )}
       </div>

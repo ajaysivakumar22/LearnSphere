@@ -16,8 +16,14 @@ export interface Course {
   description?: string;
   lessons?: number;
   rating?: number;
-  createdBy?: 'admin' | 'instructor';
+  createdBy?: string;
   imageUrl?: string | null;
+  // Optional fields that may come from backend
+  scheduledPublishDate?: string | null;
+  assignedInstructor?: string | null;
+  price?: number;
+  currency?: string;
+  isPaid?: boolean;
 }
 
 interface CourseStoreContextType {

@@ -24,21 +24,44 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
-    const { rows } = await query(
-      `SELECT
-         id,
-         course_id    AS "courseId",
-         title,
-         type,
-         content_url  AS "contentUrl",
-         duration,
-         order_index  AS "orderIndex",
-         created_at   AS "createdAt"
-       FROM lessons
-       WHERE course_id = $1
-       ORDER BY order_index ASC`,
-      [id],
-    );
+    // Try to fetch with type column, fall back without if it doesn't exist
+    let rows;
+    try {
+      const result = await query(
+        `SELECT
+           id,
+           course_id    AS "courseId",
+           title,
+           type,
+           content_url  AS "contentUrl",
+           duration,
+           order_index  AS "orderIndex",
+           created_at   AS "createdAt"
+         FROM lessons
+         WHERE course_id = $1
+         ORDER BY order_index ASC`,
+        [id],
+      );
+      rows = result.rows;
+    } catch {
+      // Fall back to query without type column if it doesn't exist
+      const result = await query(
+        `SELECT
+           id,
+           course_id    AS "courseId",
+           title,
+           'video' AS type,
+           content_url  AS "contentUrl",
+           duration,
+           order_index  AS "orderIndex",
+           created_at   AS "createdAt"
+         FROM lessons
+         WHERE course_id = $1
+         ORDER BY order_index ASC`,
+        [id],
+      );
+      rows = result.rows;
+    }
 
     return NextResponse.json(rows);
   } catch (err) {
