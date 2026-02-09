@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/shared/tabs';
 import { Switch } from '@/components/shared/switch';
 import { Button } from '@/components/shared/button';
@@ -14,17 +14,36 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/shared/dialog';
-import { ArrowLeft, Plus, ImageIcon, X, Eye, Mail, UserPlus, Copy, Check, ExternalLink, Save } from 'lucide-react';
+import { ArrowLeft, Plus, ImageIcon, X, Eye, Mail, UserPlus, Copy, Check, ExternalLink, Save, ChevronRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import ContentTab from '@/components/admin/editor/ContentTab';
+import { useRouter } from 'next/navigation';
+import ContentTab, { ContentItem } from '@/components/admin/editor/ContentTab';
 import DescriptionTab from '@/components/admin/editor/DescriptionTab';
 import OptionsTab from '@/components/admin/editor/OptionsTab';
 import QuizTab from '@/components/admin/editor/QuizTab';
-import { useCourseStore } from '@/lib/course-store';
+import { useCourseAPI } from '@/lib/course-api-context';
+import { useContentStore } from '@/lib/content-store';
+import { cn } from '@/lib/utils';
+
+// Custom hook for tracking focused field
+function useFocusedField() {
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  return { focusedField, setFocusedField };
+}
 
 export default function CourseEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
-  const { courses, updateCourse, togglePublish } = useCourseStore();
+  const router = useRouter();
+
+  // Use Real API Context exclusively
+  const { courses, updateCourse, createCourse, togglePublish, refresh } = useCourseAPI();
+  const { getContent, setContents, setQuizQuestions, setDescription: setStoreDescription, setOptions } = useContentStore();
+
+  // Get description and content from content store
+  const { description: storeDescription, contents: storeContents, quizQuestions: storeQuizQuestions, options: storeOptions } = getContent(resolvedParams.id);
+
+  const { focusedField, setFocusedField } = useFocusedField();
+
   const [isPublished, setIsPublished] = useState(false);
   const [isShareEnabled, setIsShareEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
@@ -33,18 +52,91 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
   const [tagInput, setTagInput] = useState('');
   const [responsible, setResponsible] = useState('');
   const [courseImage, setCourseImage] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
 
-  // Load course data from store on mount
+  // New Course Dialog State
+  const [showNewCourseDialog, setShowNewCourseDialog] = useState(false);
+  const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [newCourseTags, setNewCourseTags] = useState<string[]>([]);
+  const [newCourseTagInput, setNewCourseTagInput] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Refs for input positioning
+  const titleRef = useRef<HTMLDivElement>(null);
+  const tagsRef = useRef<HTMLDivElement>(null);
+  const responsibleRef = useRef<HTMLDivElement>(null);
+
+  const initId = React.useRef<string | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+
+  // Load course data from API on mount
   useEffect(() => {
     const course = courses.find((c) => c.id === resolvedParams.id);
+
+    // If course found and not initialized OR validation mismatch, sync state
     if (course) {
-      setCourseTitle(course.title);
-      setTags(course.tags);
-      setIsPublished(course.isPublished);
-      setDescription(course.description || '');
+      if (initId.current !== resolvedParams.id) {
+        setCourseTitle(course.title);
+        setTags(course.tags || []);
+        setIsPublished(course.isPublished);
+        setCourseImage(course.imageUrl);
+        setResponsible(course.assignedInstructor || '');
+
+        if (course.description) {
+          setStoreDescription(resolvedParams.id, course.description);
+        }
+
+        setOptions(resolvedParams.id, {
+          scheduledPublishDate: course.scheduledPublishDate,
+          assignedInstructor: course.assignedInstructor,
+          price: course.price,
+          currency: course.currency,
+          isPaid: course.isPaid,
+        });
+
+        initId.current = resolvedParams.id;
+      }
     }
-  }, [courses, resolvedParams.id]);
+  }, [courses, resolvedParams.id, setStoreDescription, setOptions]);
+
+  // Fetch Lessons (Content) from Backend
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const res = await fetch(`/api/courses/${resolvedParams.id}/lessons`);
+        if (res.ok) {
+          const lessons = await res.json();
+          const nonQuizLessons = lessons.filter((l: any) => l.type !== 'quiz');
+          const quizLesson = lessons.find((l: any) => l.type === 'quiz');
+
+          // Map backend lessons to ContentItem format
+          const formattedContent: ContentItem[] = nonQuizLessons.map((l: any) => ({
+            id: l.id,
+            title: l.title,
+            category: l.type.charAt(0).toUpperCase() + l.type.slice(1), // video -> Video
+            url: l.contentUrl,
+            description: '', // Backend doesn't store description on lesson table yet?
+          }));
+          setContents(resolvedParams.id, formattedContent);
+
+          if (quizLesson && quizLesson.contentUrl) {
+            try {
+              const parsedQuiz = JSON.parse(quizLesson.contentUrl);
+              setQuizQuestions(resolvedParams.id, parsedQuiz);
+            } catch (e) {
+              console.error("Failed to parse quiz data", e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch lessons", error);
+      } finally {
+        setIsLoadingContent(false);
+      }
+    };
+    fetchContent();
+  }, [resolvedParams.id, setContents, setQuizQuestions]);
+
 
   // Preview
   const [showPreview, setShowPreview] = useState(false);
@@ -108,22 +200,166 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
 
   const handlePublishToggle = (checked: boolean) => {
     setIsPublished(checked);
-    togglePublish(resolvedParams.id);
+    togglePublish(resolvedParams.id); // From API
+  };
+
+  const syncContentToBackend = async () => {
+    try {
+      // 1. Fetch current backend state
+      const res = await fetch(`/api/courses/${resolvedParams.id}/lessons`);
+      if (!res.ok) throw new Error('Failed to fetch existing lessons');
+      const existingLessons: any[] = await res.json();
+
+      // Combine storeContents and quizQuestions into a single list for sync
+      let allItemsToSync = [...storeContents];
+      if (storeQuizQuestions && storeQuizQuestions.length > 0) {
+        // Check if we already have a quiz lesson in backend to preserve ID
+        const existingQuiz = existingLessons.find(l => l.type === 'quiz');
+        allItemsToSync.push({
+          id: existingQuiz ? existingQuiz.id : Date.now().toString(), // Use existing ID or temp
+          title: 'Course Quiz',
+          category: 'Quiz',
+          url: JSON.stringify(storeQuizQuestions),
+          description: ''
+        });
+      }
+
+      // 2. Identify Deleted items (In Backend but NOT in New List)
+      // Note: If quiz is cleared in store, it won't be in allItemsToSync, thus deleted from backend. Correct.
+      const syncIds = new Set(allItemsToSync.map(c => c.id));
+      const toDelete = existingLessons.filter(l => !syncIds.has(l.id));
+
+      await Promise.all(toDelete.map(lesson =>
+        fetch(`/api/lessons/${lesson.id}`, { method: 'DELETE' })
+      ));
+
+      // 3. Identify New and Updated items
+      const upsertPromises = allItemsToSync.map(async (item, index) => {
+        const isNew = !isNaN(Number(item.id)); // Simple check for temp numeric IDs
+
+        const payload = {
+          title: item.title,
+          type: item.category.toLowerCase(),
+          contentUrl: item.url,
+          orderIndex: index
+        };
+
+        if (isNew) {
+          // Create
+          await fetch(`/api/courses/${resolvedParams.id}/lessons`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // Update
+          await fetch(`/api/lessons/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+      });
+
+      await Promise.all(upsertPromises);
+
+      // 4. Refresh local store from backend to get real IDs for new items
+      // We re-fetch to ensure we have the correct IDs
+      const refreshRes = await fetch(`/api/courses/${resolvedParams.id}/lessons`);
+      if (refreshRes.ok) {
+        const lessons = await refreshRes.json();
+        const nonQuizLessons = lessons.filter((l: any) => l.type !== 'quiz');
+        // We only update "Contents" here, QuizQuestions is already in store
+        const formattedContent: ContentItem[] = nonQuizLessons.map((l: any) => ({
+          id: l.id,
+          title: l.title,
+          category: l.type.charAt(0).toUpperCase() + l.type.slice(1),
+          url: l.contentUrl,
+          description: '',
+        }));
+        setContents(resolvedParams.id, formattedContent);
+      }
+    } catch (error) {
+      console.error('Error syncing content:', error);
+    }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    updateCourse(resolvedParams.id, {
+
+    // 1. Update Course Metadata
+    await updateCourse(resolvedParams.id, {
       title: courseTitle,
       tags,
       isPublished,
-      description,
+      description: storeDescription,
+      imageUrl: courseImage,
+      imageUrl: courseImage,
+      assignedInstructor: responsible,
+      price: storeOptions?.price,
+      currency: storeOptions?.currency || 'INR',
+      isPaid: storeOptions?.isPaid,
     });
+
+    // 2. Sync Content
+    await syncContentToBackend();
+
+    // 3. Refresh Context
+    await refresh();
+
     await new Promise((r) => setTimeout(r, 400));
     setIsSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
   };
+
+  // New Course Dialog Functions
+  const addNewCourseTag = () => {
+    const t = newCourseTagInput.trim();
+    if (t && !newCourseTags.includes(t)) {
+      setNewCourseTags([...newCourseTags, t]);
+    }
+    setNewCourseTagInput('');
+  };
+
+  const removeNewCourseTag = (tag: string) => {
+    setNewCourseTags(newCourseTags.filter((t) => t !== tag));
+  };
+
+  const handleNewCourseTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addNewCourseTag();
+    }
+  };
+
+  const handleCreateCourse = async () => {
+    if (!newCourseTitle.trim()) return;
+
+    setIsCreating(true);
+    try {
+      const course = await createCourse(newCourseTitle.trim(), newCourseDescription.trim() || undefined, newCourseTags);
+      if (course) {
+        setShowNewCourseDialog(false);
+        setNewCourseTitle('');
+        setNewCourseDescription('');
+        setNewCourseTags([]);
+        router.push(`/admin/courses/${course.id}/edit`);
+      }
+    } catch (err) {
+      console.error('Failed to create course:', err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Input indicator component
+  const InputIndicator = ({ fieldId }: { fieldId: string }) => (
+    <div className={cn(
+      "absolute -left-6 top-1/2 -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-transparent border-r-primary transition-opacity duration-200",
+      focusedField === fieldId ? "opacity-100" : "opacity-0"
+    )} />
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,12 +370,11 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
             <Link href="/admin/courses" className="rounded-lg p-2 hover:bg-accent">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <Link href="/admin/courses">
-              <Button variant="outline" size="sm">
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                New
-              </Button>
-            </Link>
+            {/* New Button - Opens Dialog Now */}
+            <Button variant="outline" size="sm" onClick={() => setShowNewCourseDialog(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              New
+            </Button>
           </div>
 
           <div className="flex items-center gap-4">
@@ -219,20 +454,36 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
 
         {/* Course Title, Tags, Responsible + Image */}
         <div className="mb-6 flex gap-6">
-          <div className="flex-1 space-y-4">
-            <div>
-              <Label className="mb-1 block text-sm text-muted-foreground">Course Title:</Label>
+          <div className="flex-1 space-y-4 pl-8">
+            {/* Course Title with Indicator */}
+            <div ref={titleRef} className="relative">
+              <InputIndicator fieldId="title" />
+              <Label className="mb-1 block text-sm text-muted-foreground">
+                Course Title: <span className="text-red-500">*</span>
+              </Label>
               <Input
                 value={courseTitle}
                 onChange={(e) => setCourseTitle(e.target.value)}
+                onFocus={() => setFocusedField('title')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="e.g: Basics of Odoo CRM"
-                className="text-lg font-medium text-primary"
+                className={cn(
+                  "text-lg font-medium text-primary transition-all",
+                  focusedField === 'title' && "ring-2 ring-primary/30"
+                )}
               />
             </div>
 
-            <div>
+            {/* Tags with Indicator */}
+            <div ref={tagsRef} className="relative">
+              <InputIndicator fieldId="tags" />
               <Label className="mb-1 block text-sm text-muted-foreground">Tags:</Label>
-              <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2">
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 transition-all",
+                  focusedField === 'tags' && "border-primary ring-2 ring-primary/30"
+                )}
+              >
                 {tags.map((tag) => (
                   <span
                     key={tag}
@@ -248,19 +499,28 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleTagKeyDown}
-                  onBlur={addTag}
+                  onBlur={() => { addTag(); setFocusedField(null); }}
+                  onFocus={() => setFocusedField('tags')}
                   placeholder={tags.length === 0 ? 'Add tags...' : ''}
                   className="min-w-[80px] flex-1 border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
             </div>
 
-            <div>
+            {/* Responsible with Indicator */}
+            <div ref={responsibleRef} className="relative">
+              <InputIndicator fieldId="responsible" />
               <Label className="mb-1 block text-sm text-muted-foreground">Responsible:</Label>
               <Input
                 value={responsible}
                 onChange={(e) => setResponsible(e.target.value)}
+                onFocus={() => setFocusedField('responsible')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="Name of the responsible person"
+                className={cn(
+                  "transition-all",
+                  focusedField === 'responsible' && "ring-2 ring-primary/30"
+                )}
               />
             </div>
           </div>
@@ -287,7 +547,14 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setCourseImage(URL.createObjectURL(file));
+                      if (file) {
+                        // Convert to Base64 for persistence
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setCourseImage(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
                     }}
                   />
                 </label>
@@ -306,10 +573,14 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
           </TabsList>
 
           <TabsContent value="content">
-            <ContentTab courseId={resolvedParams.id} />
+            {isLoadingContent ? (
+              <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : (
+              <ContentTab courseId={resolvedParams.id} />
+            )}
           </TabsContent>
           <TabsContent value="description">
-            <DescriptionTab courseId={resolvedParams.id} description={description} onDescriptionChange={setDescription} />
+            <DescriptionTab courseId={resolvedParams.id} />
           </TabsContent>
           <TabsContent value="options">
             <OptionsTab courseId={resolvedParams.id} />
@@ -319,6 +590,91 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ===== New Course Dialog ===== */}
+      <Dialog open={showNewCourseDialog} onOpenChange={setShowNewCourseDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create New Course</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to create a new course.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="mb-1.5 block text-sm">
+                Course Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={newCourseTitle}
+                onChange={(e) => setNewCourseTitle(e.target.value)}
+                placeholder="Enter course title..."
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm text-muted-foreground">(optional)</Label>
+              <Label className="mb-1.5 block text-sm">Description</Label>
+              <textarea
+                value={newCourseDescription}
+                onChange={(e) => setNewCourseDescription(e.target.value)}
+                rows={3}
+                placeholder="Brief description of the course..."
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary dark:bg-[hsl(222.2,47%,14%)] dark:border-[hsl(217.2,32.6%,30%)]"
+              />
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm">Tags</Label>
+              <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 dark:bg-[hsl(222.2,47%,14%)] dark:border-[hsl(217.2,32.6%,30%)]">
+                {newCourseTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                  >
+                    {tag}
+                    <button onClick={() => removeNewCourseTag(tag)} className="hover:text-purple-900 dark:hover:text-purple-100">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={newCourseTagInput}
+                  onChange={(e) => setNewCourseTagInput(e.target.value)}
+                  onKeyDown={handleNewCourseTagKeyDown}
+                  onBlur={addNewCourseTag}
+                  placeholder={newCourseTags.length === 0 ? 'Add tags...' : ''}
+                  className="min-w-[80px] flex-1 border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Suggestions: AI, Python, Web, Odoo, Design
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewCourseDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="odoo"
+              onClick={handleCreateCourse}
+              disabled={!newCourseTitle.trim() || isCreating}
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  Create & Continue
+                  <ChevronRight className="ml-1.5 h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== Preview Dialog ===== */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
@@ -381,7 +737,7 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
                 onChange={(e) => setContactMessage(e.target.value)}
                 rows={5}
                 placeholder="Write your message to attendees..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:bg-[hsl(222.2,47%,14%)] dark:border-[hsl(217.2,32.6%,30%)]"
               />
             </div>
             <div>

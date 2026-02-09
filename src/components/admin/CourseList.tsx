@@ -96,6 +96,7 @@ export default function CourseList({ searchQuery, selectedTags = [] }: { searchQ
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
+              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground w-16">Image</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Course Name</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tags</th>
               <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Views</th>
@@ -108,6 +109,22 @@ export default function CourseList({ searchQuery, selectedTags = [] }: { searchQ
           <tbody className="divide-y">
             {filtered.map((course) => (
               <tr key={course.id} className="hover:bg-accent/50">
+                <td className="px-4 py-3">
+                  <div className="h-10 w-16 overflow-hidden rounded bg-muted">
+                    {course.imageUrl ? (
+                      <img
+                        key={course.imageUrl}
+                        src={course.imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-primary/10 text-xs font-bold text-primary">
+                        {course.title.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-sm font-semibold text-primary">{course.title}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">

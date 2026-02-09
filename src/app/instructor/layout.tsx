@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, LogOut, Loader2 } from 'lucide-react';
+import { GraduationCap, LogOut, Loader2, LayoutDashboard, BookOpen, BarChart3, Settings, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 import { CourseAPIProvider } from '@/lib/course-api-context';
+import { ContentStoreProvider } from '@/lib/content-store';
 import {
   Dialog,
   DialogContent,
@@ -18,21 +20,36 @@ import {
 import { Button } from '@/components/shared/button';
 
 const navItems = [
-  { href: '/instructor/courses', label: 'Courses' },
-  { href: '/instructor/reports', label: 'Reporting' },
-  { href: '/instructor/settings', label: 'Settings' },
+  { href: '/instructor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/instructor/courses', label: 'Courses', icon: BookOpen },
+  { href: '/instructor/reports', label: 'Reporting', icon: BarChart3 },
+  { href: '/instructor/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function InstructorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, isLoggedIn, isLoaded, userRole } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleLogout = () => {
     logout();
     router.push('/');
+  };
+
+  // Theme toggle
+  const cycleTheme = () => {
+    if (theme === 'light') setTheme('dark');
+    else if (theme === 'dark') setTheme('system');
+    else setTheme('light');
+  };
+
+  const getThemeIcon = () => {
+    if (theme === 'light') return <Sun className="h-4 w-4" />;
+    if (theme === 'dark') return <Moon className="h-4 w-4" />;
+    return <Monitor className="h-4 w-4" />;
   };
 
   // Determine authorization status (admin OR instructor can access)
@@ -75,7 +92,7 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
         <div className="flex h-14 items-center px-6">
-          <Link href="/instructor/courses" className="mr-8 flex items-center gap-2">
+          <Link href="/instructor/dashboard" className="mr-8 flex items-center gap-2">
             <GraduationCap className="h-7 w-7 text-primary" />
             <span className="text-lg font-bold text-foreground">LearnSphere</span>
             <span className="ml-1 rounded-md bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
@@ -84,13 +101,15 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
           </Link>
           <nav className="flex h-full items-center gap-1">
             {navItems.map((item) => {
+              const Icon = item.icon;
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
                 <Link key={item.href} href={item.href}
                   className={cn(
-                    'relative flex h-14 items-center px-4 text-sm font-medium transition-colors',
+                    'relative flex h-14 items-center gap-2 px-4 text-sm font-medium transition-colors',
                     isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}>
+                  <Icon className="h-4 w-4" />
                   {item.label}
                   {isActive && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                 </Link>
@@ -98,6 +117,25 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
             })}
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            {/* Learner Mode Toggle */}
+            <Link
+              href="/learner/explore"
+              className="flex items-center gap-1.5 rounded-md bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:scale-105 hover:shadow-md"
+              title="Switch to Learner Mode"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Learner Mode</span>
+            </Link>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={cycleTheme}
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title={`Theme: ${theme} (click to change)`}
+            >
+              {getThemeIcon()}
+            </button>
+
             <button onClick={() => setShowLogoutDialog(true)}
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-red-600">
               <LogOut className="h-4 w-4" />
@@ -128,7 +166,9 @@ export default function InstructorLayout({ children }: { children: React.ReactNo
 
       <main className="flex-1">
         <CourseAPIProvider>
-          {children}
+          <ContentStoreProvider>
+            {children}
+          </ContentStoreProvider>
         </CourseAPIProvider>
       </main>
     </div>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Globe, User, Loader2, CheckCircle, BookOpen } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useCachedFetch } from '@/lib/use-cached-fetch';
 
 interface Course {
   id: string;
@@ -35,76 +36,63 @@ export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  // Courses from API
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
-  const [coursesError, setCoursesError] = useState<string | null>(null);
+  // Optimized: Use cached fetch for courses - shows cached data instantly
+  const { data: courses, loading: coursesLoading, error: coursesError } = useCachedFetch<Course[]>(
+    '/api/courses',
+    async () => {
+      const res = await fetch('/api/courses');
+      if (!res.ok) throw new Error('Failed to fetch courses');
+      return res.json();
+    },
+    { ttlMs: 30_000, staleWhileRevalidate: true }
+  );
 
-  // Enrollments
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  // Optimized: Use cached fetch for enrollments
+  const { data: enrollmentsData } = useCachedFetch<{ enrollments: Enrollment[] }>(
+    '/api/enrollments',
+    async () => {
+      const res = await fetch('/api/enrollments');
+      if (!res.ok) throw new Error('Failed to fetch enrollments');
+      return res.json();
+    },
+    { ttlMs: 30_000, enabled: isLoaded && isLoggedIn, staleWhileRevalidate: true }
+  );
+
+  const enrollments = useMemo(() => {
+    if (!enrollmentsData?.enrollments) return [];
+    return enrollmentsData.enrollments.map((e: { id: string; courseId?: string }) => ({
+      id: e.id,
+      courseId: e.courseId || e.id,
+      status: 'enrolled',
+    }));
+  }, [enrollmentsData]);
+
+  // Enrolling state
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null);
 
-  // Fetch courses from API instead of static store
-  useEffect(() => {
-    async function fetchCourses() {
-      try {
-        setCoursesLoading(true);
-        const res = await fetch('/api/courses');
-        if (!res.ok) throw new Error('Failed to fetch courses');
-        const data = await res.json();
-        setCourses(data);
-        setCoursesError(null);
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-        setCoursesError('Failed to load courses');
-      } finally {
-        setCoursesLoading(false);
-      }
-    }
+  // Only show published courses - memoized for performance
+  const publishedCourses = useMemo(() =>
+    (courses || []).filter((c) => c.isPublished),
+    [courses]
+  );
 
-    fetchCourses();
-  }, []);
+  const allTags = useMemo(() =>
+    Array.from(new Set(publishedCourses.flatMap((c) => c.tags || []))),
+    [publishedCourses]
+  );
 
-  // Fetch user's enrollments to show "Continue" for enrolled courses
-  useEffect(() => {
-    if (!isLoaded || !isLoggedIn) {
-      setEnrollments([]);
-      return;
-    }
-
-    async function fetchEnrollments() {
-      try {
-        const res = await fetch('/api/enrollments');
-        if (res.ok) {
-          const data = await res.json();
-          setEnrollments(data.enrollments?.map((e: { id: string; courseId?: string }) => ({
-            id: e.id,
-            courseId: e.courseId || e.id,
-            status: 'enrolled',
-          })) || []);
-        }
-      } catch (err) {
-        console.error('Error fetching enrollments:', err);
-      }
-    }
-
-    fetchEnrollments();
-  }, [isLoaded, isLoggedIn]);
-
-  // Only show published courses
-  const publishedCourses = courses.filter((c) => c.isPublished);
-
-  const allTags = Array.from(new Set(publishedCourses.flatMap((c) => c.tags || [])));
-
-  const filtered = publishedCourses.filter((c) => {
-    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag = !selectedTag || (c.tags || []).includes(selectedTag);
-    return matchesSearch && matchesTag;
-  });
+  const filtered = useMemo(() =>
+    publishedCourses.filter((c) => {
+      const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTag = !selectedTag || (c.tags || []).includes(selectedTag);
+      return matchesSearch && matchesTag;
+    }),
+    [publishedCourses, searchQuery, selectedTag]
+  );
 
   const isEnrolled = (courseId: string) => {
-    return enrollments.some((e) => e.courseId === courseId || e.id === courseId);
+    return enrollments.some((e: Enrollment) => e.courseId === courseId || e.id === courseId);
   };
 
   const handleEnroll = async (course: Course) => {
@@ -130,13 +118,7 @@ export default function ExplorePage() {
       });
 
       if (res.ok) {
-        const enrollment = await res.json();
-        setEnrollments((prev) => [...prev, {
-          id: enrollment.id,
-          courseId: course.id,
-          status: 'enrolled'
-        }]);
-        // Navigate to the course
+        // Navigate to the course - cache will be refreshed on next visit
         router.push(`/learner/courses/${course.id}/learn`);
       } else {
         const error = await res.json();

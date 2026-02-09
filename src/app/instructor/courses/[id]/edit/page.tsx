@@ -20,30 +20,46 @@ import ContentTab from '@/components/admin/editor/ContentTab';
 import DescriptionTab from '@/components/admin/editor/DescriptionTab';
 import QuizTab from '@/components/admin/editor/QuizTab';
 import { useCourseStore } from '@/lib/course-store';
+import { useContentStore } from '@/lib/content-store';
 
 export default function InstructorCourseEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { courses, updateCourse, togglePublish } = useCourseStore();
+  const { getContent, setDescription: setStoreDescription, setOptions } = useContentStore();
+
+  // Get description from content store
+  const { description: storeDescription } = getContent(resolvedParams.id);
+
   const [isPublished, setIsPublished] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
   const [courseTitle, setCourseTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [responsible, setResponsible] = useState('');
-  const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const initId = React.useRef<string | null>(null);
+
   // Load course data from store on mount
   useEffect(() => {
+    if (initId.current === resolvedParams.id) return;
+
     const course = courses.find((c) => c.id === resolvedParams.id);
     if (course) {
       setCourseTitle(course.title);
       setTags(course.tags);
       setIsPublished(course.isPublished);
-      setDescription(course.description || '');
+      // Initialize content store with description if empty
+      if (course.description && !storeDescription) {
+        setStoreDescription(resolvedParams.id, course.description);
+      }
+      setOptions(resolvedParams.id, {
+        scheduledPublishDate: course.scheduledPublishDate,
+        assignedInstructor: course.assignedInstructor,
+      });
+      initId.current = resolvedParams.id;
     }
-  }, [courses, resolvedParams.id]);
+  }, [courses, resolvedParams.id, setStoreDescription, storeDescription, setOptions]);
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -64,7 +80,7 @@ export default function InstructorCourseEditorPage({ params }: { params: Promise
       title: courseTitle,
       tags,
       isPublished,
-      description,
+      description: storeDescription,
     });
     await new Promise((r) => setTimeout(r, 400));
     setIsSaving(false);
@@ -141,7 +157,7 @@ export default function InstructorCourseEditorPage({ params }: { params: Promise
             <ContentTab courseId={resolvedParams.id} />
           </TabsContent>
           <TabsContent value="description">
-            <DescriptionTab courseId={resolvedParams.id} description={description} onDescriptionChange={setDescription} />
+            <DescriptionTab courseId={resolvedParams.id} />
           </TabsContent>
           <TabsContent value="quiz">
             <QuizTab courseId={resolvedParams.id} />

@@ -17,6 +17,7 @@ export interface Course {
   lessons?: number;
   rating?: number;
   createdBy?: 'admin' | 'instructor';
+  imageUrl?: string | null;
 }
 
 interface CourseStoreContextType {
@@ -126,7 +127,7 @@ function loadCourses(): Course[] {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch {}
+  } catch { }
   // First time — seed with defaults
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_COURSES));
   return DEFAULT_COURSES;
@@ -135,7 +136,7 @@ function loadCourses(): Course[] {
 function saveCourses(courses: Course[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(courses));
-  } catch {}
+  } catch { }
 }
 
 /* ======================================================================
@@ -143,12 +144,12 @@ function saveCourses(courses: Course[]) {
    ====================================================================== */
 const CourseStoreContext = createContext<CourseStoreContextType>({
   courses: [],
-  addCourse: () => {},
-  updateCourse: () => {},
-  deleteCourse: () => {},
-  togglePublish: () => {},
-  removeTag: () => {},
-  refresh: () => {},
+  addCourse: () => { },
+  updateCourse: () => { },
+  deleteCourse: () => { },
+  togglePublish: () => { },
+  removeTag: () => { },
+  refresh: () => { },
 });
 
 export function useCourseStore() {

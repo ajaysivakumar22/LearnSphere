@@ -33,6 +33,53 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Session storage key for caching user data
+const USER_CACHE_KEY = 'learnsphere-user-cache';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CachedUserData {
+  role: string;
+  name: string;
+  email: string;
+  id: string;
+  timestamp: number;
+}
+
+function getCachedUserData(email: string): CachedUserData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = sessionStorage.getItem(USER_CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached) as CachedUserData;
+    // Verify email matches and cache is still valid
+    if (data.email === email && Date.now() - data.timestamp < CACHE_TTL_MS) {
+      return data;
+    }
+    sessionStorage.removeItem(USER_CACHE_KEY);
+  } catch {
+    // Ignore cache errors
+  }
+  return null;
+}
+
+function setCachedUserData(data: CachedUserData) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(USER_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore cache errors
+  }
+}
+
+function clearCachedUserData() {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(USER_CACHE_KEY);
+  } catch {
+    // Ignore cache errors
+  }
+}
+
 /**
  * Sub-component that runs ONLY inside ClerkProvider.
  * Syncs Clerk's auth state into AuthProvider via callbacks.
@@ -80,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Ref to Clerk's signOut — populated by ClerkAuthSync
   const signOutRef = useRef<(() => Promise<void>) | null>(null);
+  const fetchInProgress = useRef(false);
 
   // Clean up legacy localStorage keys from old auth system
   useEffect(() => {
@@ -87,8 +135,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('learnsphere-guest');
   }, []);
 
-  // Function to fetch user data from backend
-  const fetchUserData = useCallback(async () => {
+  // Function to fetch user data from backend with caching
+  const fetchUserData = useCallback(async (email: string | null, forceRefresh: boolean = false) => {
+    // Prevent duplicate requests
+    if (fetchInProgress.current) return;
+
+    // Try cache first (unless force refresh)
+    if (!forceRefresh && email) {
+      const cached = getCachedUserData(email);
+      if (cached) {
+        const role = cached.role;
+        if (role === 'admin' || role === 'instructor' || role === 'learner') {
+          setUserRole(role);
+        } else {
+          setUserRole('learner');
+        }
+        if (cached.name) setUserName(cached.name);
+        if (cached.email) setUserEmail(cached.email);
+        if (cached.id) setUserId(cached.id);
+        return;
+      }
+    }
+
+    fetchInProgress.current = true;
+
     try {
       const res = await fetch('/api/auth/me');
       if (!res.ok) throw new Error('Failed to fetch role');
@@ -106,9 +176,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.email) setUserEmail(data.email);
       if (data.id) setUserId(data.id);
 
+      // Cache the result
+      if (data.email) {
+        setCachedUserData({
+          role: data.role || 'learner',
+          name: data.name || '',
+          email: data.email,
+          id: data.id || '',
+          timestamp: Date.now(),
+        });
+      }
+
     } catch {
       // Fallback to learner if DB is unreachable
       setUserRole('learner');
+    } finally {
+      fetchInProgress.current = false;
     }
   }, []);
 
@@ -122,20 +205,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserRole(null);
       setUserId(null);
       setIsLoaded(true);
+      clearCachedUserData();
       return;
     }
 
-    // Fetch actual role from DB via /api/auth/me
-    fetchUserData().finally(() => {
+    // Fetch actual role from DB via /api/auth/me (uses cache if available)
+    fetchUserData(email).finally(() => {
       setIsLoaded(true);
     });
   }, [fetchUserData]);
 
   const refreshUser = useCallback(async () => {
-    if (isLoggedIn) {
-      await fetchUserData();
+    if (isLoggedIn && userEmail) {
+      await fetchUserData(userEmail, true); // Force refresh
     }
-  }, [isLoggedIn, fetchUserData]);
+  }, [isLoggedIn, userEmail, fetchUserData]);
 
   const logout = useCallback(async () => {
     setIsLoggedIn(false);
@@ -143,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserName(null);
     setUserEmail(null);
     setUserId(null);
+    clearCachedUserData();
     // Sign out from Clerk
     if (signOutRef.current) {
       try {

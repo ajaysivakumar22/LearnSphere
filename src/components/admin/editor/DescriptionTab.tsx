@@ -2,18 +2,18 @@
 
 import { useState } from 'react';
 
+import { useContentStore } from '@/lib/content-store';
+
 interface DescriptionTabProps {
   courseId: string;
-  description?: string;
-  onDescriptionChange?: (desc: string) => void;
 }
 
-export default function DescriptionTab({ courseId, description: externalDesc, onDescriptionChange }: DescriptionTabProps) {
-  const [localDescription, setLocalDescription] = useState('');
-  const description = externalDesc ?? localDescription;
-  const setDescription = (val: string) => {
-    setLocalDescription(val);
-    onDescriptionChange?.(val);
+export default function DescriptionTab({ courseId }: DescriptionTabProps) {
+  const { getContent, setDescription } = useContentStore();
+  const { description } = getContent(courseId);
+
+  const handleDescriptionChange = (val: string) => {
+    setDescription(courseId, val);
   };
   const [isEditing, setIsEditing] = useState(false);
 
@@ -23,7 +23,7 @@ export default function DescriptionTab({ courseId, description: externalDesc, on
         <div>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
             placeholder="Write your course description here..."
             rows={8}
             className="w-full resize-none rounded-md border border-input bg-background px-4 py-3 text-sm leading-relaxed text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary"

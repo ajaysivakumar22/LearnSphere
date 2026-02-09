@@ -32,12 +32,14 @@ export async function GET(
          c.created_by     AS "createdBy",
          c.created_at     AS "createdAt",
          u.role           AS "creatorRole",
+         c.scheduled_publish_date AS "scheduledPublishDate",
+         c.assigned_instructor    AS "assignedInstructor",
          COUNT(l.id)::int AS "contentsCount"
        FROM courses c
        LEFT JOIN lessons l ON l.course_id = c.id
        LEFT JOIN users u   ON u.id = c.created_by
        WHERE c.id = $1
-       GROUP BY c.id, u.role`,
+       GROUP BY c.id, u.role, c.scheduled_publish_date, c.assigned_instructor`,
       [id],
     );
 
@@ -73,18 +75,46 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { title, description, tags, imageUrl, isPublished, duration } = body;
+    const { title, description, tags, imageUrl, isPublished, duration, scheduledPublishDate, assignedInstructor } = body;
 
-    const { rows } = await query(
-      `UPDATE courses
+    // Admin can update ANY course. Instructor only their own.
+    const isOwnerCheck = user.role === 'admin' ? '' : 'AND created_by = $9';
+
+    const sqlParams = [
+      title ?? null,
+      description ?? null,
+      tags ?? null,
+      imageUrl ?? null,
+      isPublished ?? null,
+      duration ?? null,
+      scheduledPublishDate ?? null,
+      assignedInstructor ?? null,
+      user.id, // $9 - passed even if unused by query logic, but we must use it if we number it
+      id,      // $10
+    ];
+
+    // If admin, we don't use $9 in the WHERE clause, but we can't skip numbers in $X style usually if we bind blindly.
+    // However, we can just include a dummy check for admins or cleaner: slice params.
+
+    let queryText = `UPDATE courses
        SET title       = COALESCE($1, title),
            description = COALESCE($2, description),
            tags        = COALESCE($3, tags),
            image_url   = COALESCE($4, image_url),
            is_published= COALESCE($5, is_published),
            duration    = COALESCE($6, duration),
+           scheduled_publish_date = COALESCE($7, scheduled_publish_date),
+           assigned_instructor = COALESCE($8, assigned_instructor),
            updated_at  = now()
-       WHERE id = $7 AND created_by = $8
+       WHERE id = $10`;
+
+    if (user.role !== 'admin') {
+      queryText += ` AND created_by = $9`;
+    }
+
+    // Attempting to execute
+    const { rows } = await query(
+      `${queryText}
        RETURNING
          id,
          title,
@@ -96,17 +126,10 @@ export async function PUT(
          duration,
          rating,
          created_by    AS "createdBy",
-         created_at    AS "createdAt"`,
-      [
-        title ?? null,
-        description ?? null,
-        tags ?? null,
-        imageUrl ?? null,
-        isPublished ?? null,
-        duration ?? null,
-        id,
-        user.id,
-      ],
+         created_at    AS "createdAt",
+         scheduled_publish_date AS "scheduledPublishDate",
+         assigned_instructor    AS "assignedInstructor"`,
+      sqlParams,
     );
 
     if (rows.length === 0) {

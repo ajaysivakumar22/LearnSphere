@@ -23,6 +23,13 @@ interface EnrolledCourse {
   price?: number;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  totalPoints: number;
+  badgeLevel: string;
+}
+
 export default function MyCoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { isLoggedIn, isLoaded } = useAuth();
@@ -32,41 +39,52 @@ export default function MyCoursesPage() {
   } = useStreak();
 
   const [courses, setCourses] = useState<EnrolledCourse[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user's enrolled courses from the API
+  // Fetch user's enrolled courses and profile from the API
   useEffect(() => {
     if (!isLoaded || !isLoggedIn) {
-      setLoading(false);
+      if (isLoaded && !isLoggedIn) setLoading(false);
       return;
     }
 
-    async function fetchEnrollments() {
+    async function fetchData() {
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch('/api/enrollments');
-        if (!res.ok) {
-          if (res.status === 401) {
+        const [enrollmentsRes, profileRes] = await Promise.all([
+          fetch('/api/enrollments'),
+          fetch('/api/user/me')
+        ]);
+
+        if (!enrollmentsRes.ok) {
+          if (enrollmentsRes.status === 401) {
             setError('Please sign in to view your courses');
             return;
           }
           throw new Error('Failed to fetch enrollments');
         }
 
-        const data = await res.json();
-        setCourses(data.enrollments || []);
+        const enrollmentsData = await enrollmentsRes.json();
+        setCourses(enrollmentsData.enrollments || []);
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setUserProfile(profileData);
+        }
+
       } catch (err) {
-        console.error('Error fetching enrollments:', err);
+        console.error('Error fetching data:', err);
         setError('Failed to load your courses. Please try again.');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchEnrollments();
+    fetchData();
   }, [isLoaded, isLoggedIn]);
 
   const filteredCourses = courses.filter((c) =>
@@ -81,7 +99,7 @@ export default function MyCoursesPage() {
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading your courses...</p>
+            <p className="text-muted-foreground">Loading your dashboard...</p>
           </div>
         </div>
       </div>
@@ -214,7 +232,8 @@ export default function MyCoursesPage() {
         <div className="hidden w-72 shrink-0 lg:block">
           <div className="sticky top-24 rounded-xl border border-border bg-card p-5 shadow-sm">
             <h2 className="mb-4 text-center text-lg font-bold text-foreground">My Profile</h2>
-            <BadgeDisplay totalPoints={85} />
+            {/* Dynamic Badge Display */}
+            <BadgeDisplay totalPoints={userProfile?.totalPoints || 0} />
           </div>
         </div>
       </div>

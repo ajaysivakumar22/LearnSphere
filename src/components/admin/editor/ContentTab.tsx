@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreVertical, Plus } from 'lucide-react';
+import { MoreVertical, Plus, GripVertical } from 'lucide-react';
 import { Button } from '@/components/shared/button';
+import { Reorder, useDragControls } from 'framer-motion';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,17 +19,22 @@ import {
   DialogFooter,
 } from '@/components/shared/dialog';
 import AddContentDialog from '@/components/admin/editor/AddContentDialog';
+import { useContentStore } from '@/lib/content-store';
 
 export interface ContentItem {
   id: string;
   title: string;
   category: 'Video' | 'Document' | 'Image' | 'Quiz';
+  url?: string;
+  description?: string;
+  fileName?: string;
+  allowDownload?: boolean;
 }
 
-const initialContent: ContentItem[] = [];
-
 export default function ContentTab({ courseId }: { courseId: string }) {
-  const [contents, setContents] = useState<ContentItem[]>(initialContent);
+  const { getContent, addContent, updateContent, removeContent, setContents } = useContentStore();
+  const { contents } = getContent(courseId);
+
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingContent, setEditingContent] = useState<ContentItem | null>(null);
 
@@ -36,70 +42,86 @@ export default function ContentTab({ courseId }: { courseId: string }) {
   const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
 
   const handleAdd = (item: ContentItem) => {
-    setContents([...contents, item]);
+    addContent(courseId, item);
     setShowAddDialog(false);
   };
 
   const handleUpdate = (updated: ContentItem) => {
-    setContents(contents.map((c) => (c.id === updated.id ? updated : c)));
+    updateContent(courseId, updated);
     setEditingContent(null);
   };
 
   const handleDelete = () => {
     if (deleteTarget) {
-      setContents(contents.filter((c) => c.id !== deleteTarget.id));
+      removeContent(courseId, deleteTarget.id);
       setDeleteTarget(null);
     }
   };
 
+  const handleReorder = (newOrder: ContentItem[]) => {
+    setContents(courseId, newOrder);
+  };
+
   return (
     <div>
-      {/* Table */}
-      <div className="overflow-hidden rounded-b-lg border border-t-0 bg-card">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Content title</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
-              <th className="w-12 px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {contents.map((item) => (
-              <tr key={item.id} className="group hover:bg-muted/50">
-                <td className="px-4 py-3 text-sm text-foreground">{item.title}</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{item.category}</td>
-                <td className="px-4 py-3 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100">
-                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setEditingContent(item)}>
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => setDeleteTarget(item)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-            {contents.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  No content yet. Click &quot;Add content&quot; to get started.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Reorder List Header */}
+      <div className="flex items-center rounded-t-lg border border-b-0 bg-muted/50 px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
+        <div className="w-8"></div> {/* Grip placeholder */}
+        <div className="flex-1">Content Title</div>
+        <div className="w-32">Category</div>
+        <div className="w-12"></div> {/* Actions placeholder */}
+      </div>
+
+      {/* Reorder List Body */}
+      <div className="rounded-b-lg border bg-card">
+        <Reorder.Group axis="y" values={contents} onReorder={handleReorder} className="divide-y">
+          {contents.map((item) => (
+            <Reorder.Item key={item.id} value={item} className="group flex items-center bg-card px-4 py-3 hover:bg-muted/30">
+              {/* Drag Handle */}
+              <div className="mr-3 flex w-5 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing">
+                <GripVertical className="h-4 w-4" />
+              </div>
+
+              {/* Title */}
+              <div className="flex-1 text-sm font-medium text-foreground">
+                {item.title}
+              </div>
+
+              {/* Category */}
+              <div className="w-32 text-sm text-muted-foreground">
+                {item.category}
+              </div>
+
+              {/* Actions */}
+              <div className="w-12 text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100 focus:opacity-100">
+                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingContent(item)}>
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => setDeleteTarget(item)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </Reorder.Item>
+          ))}
+        </Reorder.Group>
+
+        {contents.length === 0 && (
+          <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+            No content yet. Click &quot;Add content&quot; to get started.
+          </div>
+        )}
       </div>
 
       {/* Add content button */}

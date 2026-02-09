@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sun, Moon, Monitor, Bell, Shield, User, Camera, HelpCircle,
@@ -13,12 +13,37 @@ import { Label } from '@/components/shared/label';
 import { Switch } from '@/components/shared/switch';
 import { useTheme } from '@/lib/theme-context';
 import { useAuth } from '@/lib/auth-context';
+import { useCachedFetch } from '@/lib/use-cached-fetch';
 import { cn } from '@/lib/utils';
+// Section definitions for navigation
+const SECTIONS = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'account', label: 'Account Settings', icon: Settings },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'video', label: 'Video Preferences', icon: PlayCircle },
+  { id: 'appearance', label: 'Appearance', icon: Sun },
+  { id: 'security', label: 'Security', icon: Shield },
+  { id: 'help', label: 'Help & Support', icon: HelpCircle },
+  { id: 'about', label: 'About', icon: Info },
+];
+
+interface StatsEnrollment {
+  id: string;
+  status: string;
+}
+
+interface UserData {
+  totalPoints?: number;
+}
 
 export default function ProfilePage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { userName, userEmail, userRole, isLoaded, isLoggedIn, logout } = useAuth();
   const router = useRouter();
+
+  // Navigation State
+  const [activeSection, setActiveSection] = useState('profile');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Profile - Initialize with auth context data
   const [displayName, setDisplayName] = useState('');
@@ -26,14 +51,41 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('Passionate learner exploring new technologies and skills.');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
-  // Stats from API
-  const [stats, setStats] = useState({
-    enrolled: 0,
-    completed: 0,
-    points: 0,
-    avgRating: 0,
-  });
-  const [statsLoading, setStatsLoading] = useState(true);
+  // Optimized: Use cached fetch for enrollments
+  const { data: enrollmentsData, loading: enrollmentsLoading } = useCachedFetch<{ enrollments: StatsEnrollment[] }>(
+    '/api/enrollments',
+    async () => {
+      const res = await fetch('/api/enrollments');
+      if (!res.ok) throw new Error('Failed to fetch enrollments');
+      return res.json();
+    },
+    { ttlMs: 30_000, enabled: isLoaded && isLoggedIn, staleWhileRevalidate: true }
+  );
+
+  // Optimized: Use cached fetch for user data  
+  const { data: userData, loading: userDataLoading } = useCachedFetch<UserData>(
+    '/api/auth/me',
+    async () => {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) throw new Error('Failed to fetch user');
+      return res.json();
+    },
+    { ttlMs: 60_000, enabled: isLoaded && isLoggedIn, staleWhileRevalidate: true }
+  );
+
+  // Calculate stats from cached data
+  const stats = useMemo(() => {
+    const enrollments = enrollmentsData?.enrollments || [];
+    const completed = enrollments.filter((e) => e.status === 'completed').length;
+    return {
+      enrolled: enrollments.length,
+      completed,
+      points: userData?.totalPoints || 0,
+      avgRating: 0,
+    };
+  }, [enrollmentsData, userData]);
+
+  const statsLoading = enrollmentsLoading || userDataLoading;
 
   // Account
   const [language, setLanguage] = useState('en');
@@ -64,45 +116,6 @@ export default function ProfilePage() {
     if (userEmail) setProfileEmail(userEmail);
   }, [userName, userEmail]);
 
-  // Fetch user stats from API
-  useEffect(() => {
-    if (!isLoaded || !isLoggedIn) {
-      setStatsLoading(false);
-      return;
-    }
-
-    async function fetchStats() {
-      try {
-        // Fetch enrollments to get stats
-        const enrollRes = await fetch('/api/enrollments');
-        if (enrollRes.ok) {
-          const data = await enrollRes.json();
-          const enrollments = data.enrollments || [];
-          const completed = enrollments.filter((e: { status: string }) => e.status === 'completed').length;
-          setStats(prev => ({
-            ...prev,
-            enrolled: enrollments.length,
-            completed,
-          }));
-        }
-
-        // Fetch user profile for points
-        const meRes = await fetch('/api/auth/me');
-        if (meRes.ok) {
-          const userData = await meRes.json();
-          if (userData.totalPoints !== undefined) {
-            setStats(prev => ({ ...prev, points: userData.totalPoints }));
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-      } finally {
-        setStatsLoading(false);
-      }
-    }
-
-    fetchStats();
-  }, [isLoaded, isLoggedIn]);
 
   const themeOptions = [
     { value: 'light' as const, label: 'Light', icon: Sun },
@@ -134,13 +147,91 @@ export default function ProfilePage() {
     );
   }
 
+  // Scroll to section with highlight effect
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      element.classList.add('highlight-flash');
+      setTimeout(() => element.classList.remove('highlight-flash'), 1500);
+      setActiveSection(sectionId);
+    }
+  };
+
+  // Track active section on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = SECTIONS.map(s => document.getElementById(s.id)).filter(Boolean);
+      const scrollPosition = window.scrollY + 200;
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section && section.offsetTop <= scrollPosition) {
+          setActiveSection(SECTIONS[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
+      {/* Sticky Navigation Bar */}
+      <div className="sticky top-20 z-30 mb-8 border-b bg-card shadow-sm">
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex w-full items-center justify-between px-4 py-4 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Jump to:</span>
+            <span className="font-semibold text-foreground">{SECTIONS.find(s => s.id === activeSection)?.label}</span>
+          </div>
+          {dropdownOpen ? (
+            <ChevronRight className="h-4 w-4 rotate-90 text-muted-foreground transition-transform" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+          )}
+        </button>
+
+        {/* Dropdown Menu */}
+        {dropdownOpen && (
+          <div className="absolute left-0 right-0 mt-0 border-t bg-card shadow-lg">
+            {SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => {
+                    scrollToSection(section.id);
+                    setDropdownOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-accent border-b border-border/50",
+                    isActive && "bg-primary/10 text-primary"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="font-medium">{section.label}</span>
+                  {isActive && <ChevronRight className="ml-auto h-4 w-4" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <h1 className="mb-6 text-2xl font-bold text-foreground">Settings</h1>
 
       <div className="space-y-6">
         {/* ===== Profile ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="profile" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Profile</h2>
@@ -231,7 +322,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Account Settings ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="account" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Account Settings</h2>
@@ -270,7 +361,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Notifications ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="notifications" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
@@ -294,7 +385,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Video Preferences ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="video" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <PlayCircle className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Video Preferences</h2>
@@ -349,7 +440,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Appearance ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="appearance" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-3 flex items-center gap-2">
             <Sun className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Appearance</h2>
@@ -381,7 +472,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Security ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="security" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Security</h2>
@@ -413,7 +504,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== Help & Support ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="help" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <HelpCircle className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Help & Support</h2>
@@ -440,7 +531,7 @@ export default function ProfilePage() {
         </section>
 
         {/* ===== About ===== */}
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section id="about" className="scroll-mt-36 rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">About</h2>

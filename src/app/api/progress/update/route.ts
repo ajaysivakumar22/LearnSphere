@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { courseId, progressPct } = body;
+    const { courseId, progressPct, completedLessonId } = body;
 
     if (!courseId || typeof courseId !== 'string') {
       return NextResponse.json(
@@ -38,6 +38,17 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    // If completedLessonId is provided, track it in lesson_progress
+    if (completedLessonId && typeof completedLessonId === 'string') {
+      await query(
+        `INSERT INTO lesson_progress (user_id, lesson_id, is_completed, completed_at)
+          VALUES ($1, $2, true, now())
+          ON CONFLICT (user_id, lesson_id) DO UPDATE SET is_completed = true, completed_at = now()`,
+        [user.id, completedLessonId]
+      );
+    }
+
     if (
       typeof progressPct !== 'number' ||
       !Number.isInteger(progressPct) ||
@@ -59,6 +70,7 @@ export async function POST(request: Request) {
     );
 
     if (enrollments.length === 0) {
+      // Auto-enroll if not enrolled? strict mode: error
       return NextResponse.json(
         { error: 'Not enrolled in this course' },
         { status: 404 },
@@ -69,20 +81,8 @@ export async function POST(request: Request) {
 
     // Cannot decrease progress
     if (progressPct < enrollment.progressPct) {
-      return NextResponse.json(
-        {
-          error: `Progress cannot decrease (current: ${enrollment.progressPct}, requested: ${progressPct})`,
-        },
-        { status: 400 },
-      );
-    }
-
-    // Already completed — no further updates
-    if (enrollment.status === 'completed') {
-      return NextResponse.json(
-        { error: 'Course already completed' },
-        { status: 400 },
-      );
+      // Just return current state instead of error to be idempotent/resilient
+      return NextResponse.json(enrollment);
     }
 
     // Determine new status
@@ -93,8 +93,12 @@ export async function POST(request: Request) {
       newStatus = 'in_progress';
     }
 
-    const setCompletedAt =
-      newStatus === 'completed' ? ', completed_at = now()' : '';
+    // If status is completed, set completed_at. If already completed, keep original date (don't overwrite)
+    // But here we are updating.
+    let setCompletedAt = '';
+    if (newStatus === 'completed' && enrollment.status !== 'completed') {
+      setCompletedAt = ', completed_at = now()';
+    }
 
     const { rows: updated } = await query(
       `UPDATE enrollments
@@ -107,9 +111,7 @@ export async function POST(request: Request) {
          user_id      AS "userId",
          course_id    AS "courseId",
          status,
-         progress_pct AS "progressPct",
-         enrolled_at  AS "enrolledAt",
-         completed_at AS "completedAt"`,
+         progress_pct AS "progressPct"`,
       [progressPct, newStatus, user.id, courseId],
     );
 

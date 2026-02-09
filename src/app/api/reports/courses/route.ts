@@ -19,6 +19,7 @@ interface CourseStats {
     yetToStart: number;
     inProgress: number;
     completed: number;
+    revenue: number;
 }
 
 interface EnrollmentRow {
@@ -27,6 +28,7 @@ interface EnrollmentRow {
     yetToStart: string;
     inProgress: string;
     completed: string;
+    revenue: string;
 }
 
 export async function GET() {
@@ -41,16 +43,45 @@ export async function GET() {
         }
 
         // Get enrollment stats grouped by course
-        const { rows } = await query<EnrollmentRow>(
-            `SELECT 
-         e.course_id AS "courseId",
-         COUNT(*)::text AS total,
-         SUM(CASE WHEN e.progress_pct = 0 THEN 1 ELSE 0 END)::text AS "yetToStart",
-         SUM(CASE WHEN e.progress_pct > 0 AND e.progress_pct < 100 AND e.status != 'completed' THEN 1 ELSE 0 END)::text AS "inProgress",
-         SUM(CASE WHEN e.progress_pct >= 100 OR e.status = 'completed' THEN 1 ELSE 0 END)::text AS "completed"
-       FROM enrollments e
-       GROUP BY e.course_id`,
-        );
+        let rows: EnrollmentRow[] = [];
+        try {
+            const res = await query<EnrollmentRow>(
+                `SELECT 
+             e.course_id AS "courseId",
+             COUNT(*)::text AS total,
+             SUM(CASE WHEN e.progress_pct = 0 THEN 1 ELSE 0 END)::text AS "yetToStart",
+             SUM(CASE WHEN e.progress_pct > 0 AND e.progress_pct < 100 AND e.status != 'completed' THEN 1 ELSE 0 END)::text AS "inProgress",
+             SUM(CASE WHEN e.progress_pct >= 100 OR e.status = 'completed' THEN 1 ELSE 0 END)::text AS "completed",
+             SUM(COALESCE(e.amount_paid, 0))::text AS "revenue"
+           FROM enrollments e
+           GROUP BY e.course_id`,
+            );
+            rows = res.rows;
+        } catch (err: any) {
+            if (err.code === '42703') { // Undefined column
+                console.log('[GET /api/reports] Missing columns. Adding...');
+                await query(`
+                    ALTER TABLE enrollments 
+                    ADD COLUMN IF NOT EXISTS amount_paid NUMERIC DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS transaction_id TEXT;
+                `);
+                // Retry
+                const res = await query<EnrollmentRow>(
+                    `SELECT 
+                 e.course_id AS "courseId",
+                 COUNT(*)::text AS total,
+                 SUM(CASE WHEN e.progress_pct = 0 THEN 1 ELSE 0 END)::text AS "yetToStart",
+                 SUM(CASE WHEN e.progress_pct > 0 AND e.progress_pct < 100 AND e.status != 'completed' THEN 1 ELSE 0 END)::text AS "inProgress",
+                 SUM(CASE WHEN e.progress_pct >= 100 OR e.status = 'completed' THEN 1 ELSE 0 END)::text AS "completed",
+                 SUM(COALESCE(e.amount_paid, 0))::text AS "revenue"
+               FROM enrollments e
+               GROUP BY e.course_id`,
+                );
+                rows = res.rows;
+            } else {
+                throw err;
+            }
+        }
 
         // Create a map of courseId -> stats
         const stats: Record<string, CourseStats> = {};
@@ -60,6 +91,7 @@ export async function GET() {
                 yetToStart: parseInt(row.yetToStart) || 0,
                 inProgress: parseInt(row.inProgress) || 0,
                 completed: parseInt(row.completed) || 0,
+                revenue: parseFloat(row.revenue) || 0,
             };
         }
 

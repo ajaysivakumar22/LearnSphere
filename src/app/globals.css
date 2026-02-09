@@ -44,7 +44,7 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 26%;
-    --input: 217.2 32.6% 26%;
+    --input: 217.2 32.6% 20%;
     --ring: 314 28% 56%;
   }
 }
@@ -56,6 +56,29 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Dark mode input visibility fixes */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    @apply bg-[hsl(222.2,47%,14%)] border-[hsl(217.2,32.6%,30%)] text-foreground;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    @apply text-[hsl(215,20.2%,55%)];
+  }
+
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    @apply border-primary ring-1 ring-primary/30;
+  }
+
+  /* Improve select dropdown visibility in dark mode */
+  .dark select option {
+    @apply bg-[hsl(222.2,47%,14%)] text-foreground;
   }
 }
 
@@ -106,6 +129,25 @@
   .progress-ring {
     @apply relative inline-flex items-center justify-center;
   }
+
+  /* Active input indicator arrow */
+  .input-indicator {
+    @apply absolute -left-6 top-1/2 -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-transparent border-r-primary opacity-0 transition-opacity duration-200;
+  }
+
+  .input-indicator.active {
+    @apply opacity-100;
+  }
+}
+
+/* Highlight flash animation for settings navigation */
+@keyframes highlightFlash {
+  0% { background-color: hsl(var(--primary) / 0.15); }
+  100% { background-color: transparent; }
+}
+
+.highlight-flash {
+  animation: highlightFlash 1.5s ease-out;
 }
 
 @keyframes shimmer {
@@ -122,3 +164,10 @@
   background: linear-gradient(to right, #eff6ff 4%, #dbeafe 25%, #eff6ff 36%);
   background-size: 1000px 100%;
 }
+
+/* Dark mode shimmer */
+.dark .animate-shimmer {
+  background: linear-gradient(to right, hsl(222.2 47% 11%) 4%, hsl(217.2 32.6% 17.5%) 25%, hsl(222.2 47% 11%) 36%);
+  background-size: 1000px 100%;
+}
+

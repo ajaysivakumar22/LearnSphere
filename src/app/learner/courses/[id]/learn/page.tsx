@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Download, Check, Menu, X,
   Video, FileText, Image, HelpCircle, ArrowLeft,
-  Search, Star, Circle, ArrowRight, User,
+  Search, Star, Circle, ArrowRight, User, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
@@ -33,12 +33,16 @@ interface CourseContent {
   status: 'completed' | 'in_progress' | 'not_started';
   allowDownload: boolean;
   attachments: ContentAttachment[];
+  contentUrl?: string; // Added to store URL/Quiz Data
 }
 
 interface QuizQuestion {
-  text: string;
+  id?: string;
+  text: string; // Mapped from 'question' in store
+  question?: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: number; // Mapped from 'correctIndex'
+  correctIndex?: number;
 }
 
 interface Review {
@@ -49,109 +53,13 @@ interface Review {
   date: string;
 }
 
-/* ======================================================================
-   SAMPLE DATA
-   ====================================================================== */
-const courseInfo = {
-  title: 'Basics of Odoo CRM',
-  description:
-    'Learn the fundamentals of customer relationship management with Odoo. Build pipelines, manage leads, automate your sales process, and generate insightful reports.',
-  tag: 'CRM',
-};
-
-const initialContents: CourseContent[] = [
-  {
-    id: '1',
-    title: 'Advanced Sales & CRM Automation in Odoo',
-    description: 'Learn about advanced sales automation techniques and CRM pipeline management.',
-    type: 'video',
-    duration: 15,
-    status: 'completed',
-    allowDownload: false,
-    attachments: [
-      { type: 'document', label: 'Sales Guide PDF' },
-      { type: 'video', label: 'Demo Video' },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Document',
-    description: 'Reference documentation for CRM pipeline setup and configuration.',
-    type: 'document',
-    duration: 10,
-    status: 'not_started',
-    allowDownload: true,
-    attachments: [
-      { type: 'document', label: 'Pipeline Setup Guide' },
-    ],
-  },
-  {
-    id: '3',
-    title: 'Video',
-    description: 'Video walkthrough of the complete CRM workflow and best practices.',
-    type: 'video',
-    duration: 20,
-    status: 'not_started',
-    allowDownload: false,
-    attachments: [
-      { type: 'video', label: 'CRM Walkthrough' },
-    ],
-  },
-  {
-    id: '4',
-    title: 'Quiz',
-    description: 'Test your knowledge of CRM concepts and Odoo functionality.',
-    type: 'quiz',
-    duration: 10,
-    status: 'not_started',
-    allowDownload: false,
-    attachments: [],
-  },
-];
-
-const quizQuestions: QuizQuestion[] = [
-  {
-    text: 'What is the primary purpose of a CRM pipeline?',
-    options: [
-      'To write code for websites',
-      'To track and manage sales opportunities through stages',
-      'To design user interfaces',
-      'To manage employee schedules',
-    ],
-    correctAnswer: 1,
-  },
-  {
-    text: 'Which Odoo module is used for lead management?',
-    options: [
-      'Odoo Accounting',
-      'Odoo CRM',
-      'Odoo Inventory',
-      'Odoo Manufacturing',
-    ],
-    correctAnswer: 1,
-  },
-  {
-    text: 'What happens when a lead is converted in Odoo CRM?',
-    options: [
-      'It is deleted from the system',
-      'It becomes an opportunity',
-      'It is archived automatically',
-      'It sends an email to the admin',
-    ],
-    correctAnswer: 1,
-  },
-];
-
-const sampleReviews: Review[] = [
-  { id: '1', userName: 'Alice Johnson', rating: 5, comment: 'Excellent course! CRM pipeline explanation was very clear.', date: '2025-01-15T10:30:00' },
-  { id: '2', userName: 'Bob Smith', rating: 4, comment: 'Great content overall. Could use more hands-on exercises.', date: '2025-01-14T14:20:00' },
-  { id: '3', userName: 'Cathy Lee', rating: 5, comment: 'Very well structured. I learned a lot about Odoo CRM features.', date: '2025-01-12T09:15:00' },
-  { id: '4', userName: 'David Park', rating: 3, comment: 'Decent course, some sections felt rushed.', date: '2025-01-10T16:45:00' },
-  { id: '5', userName: 'Eva Martinez', rating: 4, comment: 'Really enjoyed the lead management module!', date: '2025-01-08T11:00:00' },
-];
-
-const typeIcons: Record<string, typeof Video> = { video: Video, document: FileText, image: Image, quiz: HelpCircle };
-const attachIcons: Record<string, typeof Video> = { video: Video, document: FileText, quiz: HelpCircle };
+interface CourseMetadata {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  imageUrl: string;
+}
 
 /* ======================================================================
    HELPER COMPONENTS
@@ -200,16 +108,23 @@ function AddReviewDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit:
   );
 }
 
+const typeIcons: Record<string, typeof Video> = { video: Video, document: FileText, image: Image, quiz: HelpCircle };
+const attachIcons: Record<string, typeof Video> = { video: Video, document: FileText, quiz: HelpCircle };
+
 /* ======================================================================
    MAIN PAGE
    ====================================================================== */
 export default function LearningPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isLoaded } = useAuth();
 
   /* ---- State ---- */
-  const [contents, setContents] = useState<CourseContent[]>(initialContents);
+  const [loading, setLoading] = useState(true);
+  const [course, setCourse] = useState<CourseMetadata | null>(null);
+  const [contents, setContents] = useState<CourseContent[]>([]);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -227,49 +142,139 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
   const [contentSearch, setContentSearch] = useState('');
   const [filterStar, setFilterStar] = useState<number | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [reviews, setReviews] = useState<Review[]>(sampleReviews);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
-  // Load course completion state from localStorage (only for authenticated users)
+  const [isEnrolled, setIsEnrolled] = useState(false);
+
+  // 1. Fetch Data
   useEffect(() => {
-    if (!isLoggedIn) return;
-    try {
-      const completedCourses = JSON.parse(localStorage.getItem('completedCourses') || '[]');
-      if (completedCourses.includes(resolvedParams.id)) {
-        setCourseCompleted(true);
-        setContents(prev => prev.map(c => ({ ...c, status: 'completed' as const })));
-      } else {
-        // Load saved progress for this course
-        const savedProgress = localStorage.getItem(`courseProgress_${resolvedParams.id}`);
-        if (savedProgress) {
-          try {
-            const progressData = JSON.parse(savedProgress) as { completedIds: string[] };
-            setContents(prev => prev.map(c => ({
-              ...c,
-              status: progressData.completedIds.includes(c.id) ? 'completed' as const : c.status,
-            })));
-          } catch {}
-        }
-      }
-    } catch {}
-  }, [resolvedParams.id, isLoggedIn]);
+    async function init() {
+      try {
+        setLoading(true);
+        // Fetch Course
+        const courseRes = await fetch(`/api/courses/${resolvedParams.id}`);
+        if (!courseRes.ok) throw new Error('Failed to load course');
+        const courseData = await courseRes.json();
+        setCourse(courseData);
 
-  /* ---- Computed ---- */
-  const currentContent = contents[currentIdx];
+        // Fetch Lessons
+        const lessonsRes = await fetch(`/api/courses/${resolvedParams.id}/lessons`);
+        if (!lessonsRes.ok) throw new Error('Failed to load lessons');
+        const lessonsData = await lessonsRes.json();
+
+        // Parse lessons + separate quiz
+        const parsedContents: CourseContent[] = [];
+        let parsedQuizQuestions: QuizQuestion[] = [];
+
+        lessonsData.forEach((l: any) => {
+          if (l.type === 'quiz') {
+            // Extract quiz questions from contentUrl
+            try {
+              if (l.contentUrl) {
+                const qs = JSON.parse(l.contentUrl);
+                // Map store format to local format
+                parsedQuizQuestions = qs.map((q: any) => ({
+                  text: q.question || q.text,
+                  options: q.options,
+                  correctAnswer: q.correctIndex !== undefined ? q.correctIndex : q.correctAnswer
+                }));
+              }
+            } catch (e) {
+              console.error('Failed to parse quiz', e);
+            }
+            // Also add as content so it appears in the list (optional, but good for UI consistency)
+            parsedContents.push({
+              id: l.id,
+              title: l.title || 'Course Quiz',
+              description: 'Test your knowledge',
+              type: 'quiz',
+              duration: l.duration || 10,
+              status: 'not_started',
+              allowDownload: false,
+              attachments: [],
+              contentUrl: l.contentUrl
+            });
+          } else {
+            parsedContents.push({
+              id: l.id,
+              title: l.title,
+              description: '',
+              type: l.type,
+              duration: l.duration || 5, // Default duration if missing
+              status: 'not_started',
+              allowDownload: false,
+              attachments: [],
+              contentUrl: l.contentUrl
+            });
+          }
+        });
+
+        setContents(parsedContents);
+        setQuizQuestions(parsedQuizQuestions);
+
+        if (isLoggedIn) {
+          const [enrollRes, progressRes] = await Promise.all([
+            fetch('/api/enrollments'),
+            fetch(`/api/progress/course/${resolvedParams.id}`)
+          ]);
+
+          let completedIds: string[] = [];
+          if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            completedIds = progressData.completedLessonIds || [];
+          } else {
+            // Fallback to localStorage if API fails or returns nothing (legacy support)
+            try {
+              const saved = localStorage.getItem(`courseProgress_${resolvedParams.id}`);
+              if (saved) {
+                const p = JSON.parse(saved);
+                if (p.completedIds) completedIds = p.completedIds;
+              }
+            } catch { }
+          }
+
+          if (enrollRes.ok) {
+            const enrollData = await enrollRes.json();
+            const myEnrollment = enrollData.enrollments.find((e: any) => e.id === resolvedParams.id);
+
+            if (myEnrollment) {
+              setIsEnrolled(true);
+              // Update contents status based on granular IDs
+              setContents(prev => prev.map(c => ({
+                ...c,
+                status: completedIds.includes(c.id) ? 'completed' : c.status
+              })));
+            }
+          }
+        }
+
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (isLoaded) {
+      init();
+    }
+  }, [resolvedParams.id, isLoggedIn, isLoaded]);
+
+  /* ---- Computeds ---- */
+  const currentContent = contents[currentIdx] || {
+    id: 'loading', title: 'Loading...', description: '', type: 'video',
+    duration: 0, status: 'not_started', allowDownload: false, attachments: []
+  };
+
   const completedCount = contents.filter((c) => c.status === 'completed').length;
-  const progressPct = Math.round((completedCount / contents.length) * 100);
-  const allCompleted = contents.every((c) => c.status === 'completed');
+  const progressPct = contents.length > 0 ? Math.round((completedCount / contents.length) * 100) : 0;
+  const allCompleted = progressPct === 100;
 
   const filteredContents = contents.filter((c) =>
     c.title.toLowerCase().includes(contentSearch.toLowerCase())
   );
 
-  const avgRating = reviews.length > 0 ? +(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1) : 0;
-  const filteredReviews = useMemo(() => {
-    let list = [...reviews];
-    if (filterStar !== null) list = list.filter((r) => r.rating === filterStar);
-    list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return list;
-  }, [reviews, filterStar]);
+  const avgRating = reviews.filter(r => r.rating > 0).reduce((a, b) => a + b.rating, 0) / (reviews.length || 1);
 
   const progressGradient = progressPct === 100
     ? '#22c55e'
@@ -284,46 +289,69 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
     setQuizSelected(null);
     setQuizCompleted(false);
     setShowRewardModal(false);
+
     setContents((prev) => prev.map((c, i) =>
       i === idx && c.status === 'not_started' ? { ...c, status: 'in_progress' } : c
     ));
   };
 
-  const markComplete = useCallback((idx: number) => {
-    if (!isLoggedIn) return; // Guests cannot track progress
+  const markComplete = useCallback(async (idx: number) => {
+    if (!isLoggedIn) return;
+
+    const content = contents[idx];
+    if (!content) return;
+
+    // 1. Optimistic Update
+    let newContents: CourseContent[] = [];
     setContents((prev) => {
-      const updated = prev.map((c, i) =>
+      newContents = prev.map((c, i) =>
         i === idx ? { ...c, status: 'completed' as const } : c
       );
-      // Persist progress to localStorage
-      try {
-        const completedIds = updated.filter(c => c.status === 'completed').map(c => c.id);
-        const completedCount = completedIds.length;
-        const totalContents = updated.length;
-        const progressPct = Math.round((completedCount / totalContents) * 100);
-        localStorage.setItem(`courseProgress_${resolvedParams.id}`, JSON.stringify({
-          completedIds,
-          completedCount,
-          totalContents,
-          progressPct,
-        }));
-      } catch {}
-      return updated;
+      return newContents;
     });
-    markLearningActivity();
-  }, [resolvedParams.id, isLoggedIn]);
+
+    // 2. Calc Progress
+    const completed = newContents.filter(c => c.status === 'completed').length;
+    const pct = Math.round((completed / newContents.length) * 100);
+
+    // 3. Persist to API
+    try {
+      await fetch('/api/progress/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: resolvedParams.id,
+          progressPct: pct,
+          completedLessonId: content.id
+        })
+      });
+      markLearningActivity();
+    } catch (e) {
+      console.error('Failed to sync progress', e);
+    }
+
+    // 4. Save to LocalStorage (backup)
+    try {
+      const completedIds = newContents.filter(c => c.status === 'completed').map(c => c.id);
+      localStorage.setItem(`courseProgress_${resolvedParams.id}`, JSON.stringify({ completedIds }));
+    } catch { }
+
+  }, [resolvedParams.id, isLoggedIn, contents]);
 
   const goNextContent = () => {
     markComplete(currentIdx);
     const nextIdx = currentIdx + 1;
     if (nextIdx < contents.length) {
       openContent(nextIdx);
+    } else {
+      // End of course
+      setCourseCompleted(true);
     }
   };
 
   const handleAddReview = (rating: number, comment: string) => {
     setReviews((prev) => [{
-      id: String(prev.length + 1), userName: 'Student User', rating, comment, date: new Date().toISOString(),
+      id: String(prev.length + 1), userName: 'You', rating, comment, date: new Date().toISOString(),
     }, ...prev]);
   };
 
@@ -340,20 +368,23 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
   };
 
   const handleCompleteCourse = () => {
-    if (!isLoggedIn) return; // Guests cannot complete courses
+    if (!isLoggedIn) return;
     setCourseCompleted(true);
     setIsPlayerOpen(false);
-    markLearningActivity();
-    // Save course completion to localStorage
-    try {
-      const completedCourses = JSON.parse(localStorage.getItem('completedCourses') || '[]');
-      if (!completedCourses.includes(resolvedParams.id)) {
-        completedCourses.push(resolvedParams.id);
-        localStorage.setItem('completedCourses', JSON.stringify(completedCourses));
-      }
-    } catch {}
-    // Stay on course dashboard — show completion banner
+    markComplete(currentIdx); // Validates final item
   };
+
+  /* ---- RENDER ---- */
+  if (loading || !course) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
 
   /* ======================================================================
      FULL-SCREEN PLAYER
@@ -379,7 +410,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                   className="mb-3 flex items-center gap-2 text-sm text-gray-400 hover:text-white">
                   <ArrowLeft className="h-4 w-4" /> Back to My Courses
                 </Link>
-                <h2 className="text-lg font-bold text-white">{courseInfo.title}</h2>
+                <h2 className="text-lg font-bold text-white line-clamp-2">{course.title}</h2>
                 <p className="mt-1 text-sm text-gray-400">{progressPct}% Completed</p>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-700">
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
@@ -416,19 +447,6 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                           <Circle className="h-5 w-5 shrink-0 text-gray-600" />
                         )}
                       </button>
-                      {content.attachments.length > 0 && (
-                        <div className="space-y-0.5 px-4 pb-2 pl-8">
-                          {content.attachments.map((att, ai) => {
-                            const AttIcon = attachIcons[att.type] || FileText;
-                            return (
-                              <div key={ai} className="flex items-center gap-2 text-xs text-gray-500">
-                                <AttIcon className="h-3 w-3 text-red-400" />
-                                <span className="text-gray-500">[Additional attachment]</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -438,20 +456,13 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
         </AnimatePresence>
 
         {/* ---- Main area ---- */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           {/* Top bar */}
           <div className="flex items-center justify-between border-b border-gray-700 bg-gray-800 px-6 py-3">
             <div className="flex items-center gap-4">
-              {!isSidebarOpen && (
-                <button onClick={() => setIsSidebarOpen(true)} className="text-gray-400 hover:text-white">
-                  <Menu className="h-5 w-5" />
-                </button>
-              )}
-              {isSidebarOpen && (
-                <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-white">
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-gray-400 hover:text-white">
+                {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
             </div>
             {currentContent.allowDownload && (
               <button className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">
@@ -462,36 +473,38 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
 
           {/* Description bar */}
           <div className="border-b border-gray-700 bg-gray-800/50 px-6 py-3">
-            <p className="text-sm text-gray-400">{currentContent.description}</p>
+            <p className="text-sm text-gray-400">{currentContent.description || 'No description available'}</p>
           </div>
 
           {/* Content area */}
-          <div className="flex flex-1 flex-col items-center justify-center p-6">
+          <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-6">
             {!isQuiz && (
               <>
-                <h2 className="mb-6 text-2xl font-bold text-white">{currentContent.title}</h2>
-                <div className="flex h-full w-full max-w-4xl items-center justify-center rounded-xl border border-gray-700 bg-gray-800">
-                  {currentContent.type === 'video' && (
+                <h2 className="mb-6 text-2xl font-bold text-white text-center">{currentContent.title}</h2>
+                <div className="flex h-full w-full max-w-4xl items-center justify-center rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
+
+                  {/* Actual Content Rendering */}
+                  {currentContent.type === 'video' ? (
                     <div className="text-center text-white">
                       <Video className="mx-auto mb-4 h-16 w-16 text-gray-500" />
-                      <p className="text-lg font-medium">Video Player</p>
-                      <p className="text-sm text-gray-400">{currentContent.title}</p>
+                      <p className="text-lg font-medium">Video Player Placeholder</p>
+                      {currentContent.contentUrl ?
+                        <p className="text-xs text-blue-400 mt-2">{currentContent.contentUrl}</p>
+                        : <p className="text-sm text-gray-400">No URL provided</p>
+                      }
                     </div>
-                  )}
-                  {currentContent.type === 'document' && (
-                    <div className="text-center">
-                      <FileText className="mx-auto mb-4 h-16 w-16 text-gray-500" />
-                      <p className="text-lg font-medium text-white">Document Viewer</p>
-                      <p className="text-sm text-gray-400">{currentContent.title}</p>
-                    </div>
-                  )}
-                  {currentContent.type === 'image' && (
+                  ) : currentContent.type === 'image' ? (
                     <div className="text-center">
                       <Image className="mx-auto mb-4 h-16 w-16 text-gray-500" />
                       <p className="text-lg font-medium text-white">Image Viewer</p>
-                      <p className="text-sm text-gray-400">{currentContent.title}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <FileText className="mx-auto mb-4 h-16 w-16 text-gray-500" />
+                      <p className="text-lg font-medium text-white">Document Viewer</p>
                     </div>
                   )}
+
                 </div>
               </>
             )}
@@ -499,7 +512,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
             {isQuiz && !quizStarted && !quizCompleted && (
               <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-800 p-8 text-center">
                 <HelpCircle className="mx-auto mb-4 h-12 w-12 text-primary" />
-                <h2 className="mb-2 text-2xl font-bold text-white">Quiz</h2>
+                <h2 className="mb-2 text-2xl font-bold text-white">{currentContent.title}</h2>
                 <p className="mb-2 text-gray-400">{quizQuestions.length} Questions</p>
                 <p className="mb-6 text-sm text-gray-500">Multiple attempts are allowed</p>
                 {isLoggedIn ? (
@@ -518,45 +531,51 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
             )}
 
             {isQuiz && quizStarted && !quizCompleted && (
-              <div className="w-full max-w-2xl">
-                <p className="mb-4 text-sm font-medium text-gray-400">
-                  Question {quizQuestionIdx + 1} of {quizQuestions.length}
-                </p>
-                <h3 className="mb-8 text-xl font-bold text-white">
-                  {quizQuestions[quizQuestionIdx].text}
-                </h3>
-                <div className="space-y-3">
-                  {quizQuestions[quizQuestionIdx].options.map((opt, oi) => (
-                    <button
-                      key={oi}
-                      onClick={() => setQuizSelected(oi)}
-                      className={cn(
-                        'flex w-full items-center gap-4 rounded-xl border px-5 py-4 text-left transition-all',
-                        quizSelected === oi
-                          ? 'border-primary bg-primary/10 text-white'
-                          : 'border-gray-700 text-gray-300 hover:border-gray-600 hover:bg-gray-800'
-                      )}
-                    >
-                      <div className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium',
-                        quizSelected === oi ? 'border-primary bg-primary text-white' : 'border-gray-600'
-                      )}>
-                        {String.fromCharCode(65 + oi)}
-                      </div>
-                      <span>{opt}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-8 flex justify-end">
-                  <Button
-                    variant="odoo"
-                    disabled={quizSelected === null}
-                    onClick={handleQuizProceed}
-                    className="px-8"
-                  >
-                    {isLastQuestion ? 'Proceed and Complete Quiz' : 'Proceed'}
-                  </Button>
-                </div>
+              <div className="w-full max-w-2xl bg-gray-800 p-6 rounded-xl">
+                {quizQuestions.length > 0 ? (
+                  <>
+                    <p className="mb-4 text-sm font-medium text-gray-400">
+                      Question {quizQuestionIdx + 1} of {quizQuestions.length}
+                    </p>
+                    <h3 className="mb-8 text-xl font-bold text-white">
+                      {quizQuestions[quizQuestionIdx].text}
+                    </h3>
+                    <div className="space-y-3">
+                      {quizQuestions[quizQuestionIdx].options.map((opt, oi) => (
+                        <button
+                          key={oi}
+                          onClick={() => setQuizSelected(oi)}
+                          className={cn(
+                            'flex w-full items-center gap-4 rounded-xl border px-5 py-4 text-left transition-all',
+                            quizSelected === oi
+                              ? 'border-primary bg-primary/10 text-white'
+                              : 'border-gray-700 text-gray-300 hover:border-gray-600 hover:bg-gray-800'
+                          )}
+                        >
+                          <div className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium',
+                            quizSelected === oi ? 'border-primary bg-primary text-white' : 'border-gray-600'
+                          )}>
+                            {String.fromCharCode(65 + oi)}
+                          </div>
+                          <span>{opt}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-8 flex justify-end">
+                      <Button
+                        variant="odoo"
+                        disabled={quizSelected === null}
+                        onClick={handleQuizProceed}
+                        className="px-8"
+                      >
+                        {isLastQuestion ? 'Proceed and Complete Quiz' : 'Proceed'}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-400">No questions configured for this quiz.</div>
+                )}
               </div>
             )}
 
@@ -613,15 +632,6 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                   <p className="mb-2 text-4xl">&#x1F389;</p>
                   <h2 className="mb-1 text-2xl font-bold text-white">Bingo! You have earned!</h2>
                   <p className="mb-6 text-3xl font-extrabold text-primary">20 Points</p>
-
-                  <div className="mb-2 flex items-center justify-between text-xs text-gray-400">
-                    <span>5 Points</span>
-                    <span>100 Points</span>
-                  </div>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-gray-700">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-purple-500"
-                      style={{ width: '25%' }} />
-                  </div>
                   <p className="mt-3 text-sm text-gray-400">
                     Reach the next rank to gain more points.
                   </p>
@@ -655,9 +665,9 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
             <Video className="h-8 w-8 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <Badge variant="secondary" className="mb-1">{courseInfo.tag}</Badge>
-            <h1 className="text-2xl font-bold text-foreground">{courseInfo.title}</h1>
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{courseInfo.description}</p>
+            <Badge variant="secondary" className="mb-1">{course.tags?.[0] || 'Course'}</Badge>
+            <h1 className="text-2xl font-bold text-foreground">{course.title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
           </div>
         </div>
 
@@ -732,63 +742,54 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                 className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
 
-            <div className="rounded-xl border border-border bg-card shadow-sm">
-              {filteredContents.map((content, idx) => {
-                const realIdx = contents.indexOf(content);
-                const Icon = typeIcons[content.type];
-                const isCompleted = content.status === 'completed';
-                const isInProgress = content.status === 'in_progress';
-                return (
-                  <div key={content.id}>
-                    <button
-                      onClick={() => openContent(realIdx)}
-                      className={cn(
-                        'flex w-full items-center gap-4 border-b border-border px-5 py-4 text-left transition-colors hover:bg-muted/50',
-                        idx === filteredContents.length - 1 && 'border-b-0'
-                      )}
-                    >
-                      <span className="w-6 shrink-0 text-sm font-medium text-muted-foreground">
-                        {realIdx + 1}.
-                      </span>
-
-                      <div className="min-w-0 flex-1">
-                        <p className={cn('text-sm font-medium', isCompleted ? 'text-blue-500' : 'text-foreground')}>
-                          {content.title}
-                        </p>
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Icon className="h-3 w-3" /> {content.type} - {content.duration} min
-                        </p>
-                        {content.attachments.length > 0 && (
-                          <div className="mt-1 space-y-0.5">
-                            {content.attachments.map((att, ai) => {
-                              const AttIcon = attachIcons[att.type] || FileText;
-                              return (
-                                <div key={ai} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <AttIcon className="h-3 w-3 text-red-400" />
-                                  <span>[Additional attachment]</span>
-                                </div>
-                              );
-                            })}
-                          </div>
+            {filteredContents.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground border rounded-lg border-dashed">No content details available yet.</div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card shadow-sm">
+                {filteredContents.map((content, idx) => {
+                  const realIdx = contents.indexOf(content);
+                  const Icon = typeIcons[content.type] || FileText;
+                  const isCompleted = content.status === 'completed';
+                  const isInProgress = content.status === 'in_progress';
+                  return (
+                    <div key={content.id}>
+                      <button
+                        onClick={() => openContent(realIdx)}
+                        className={cn(
+                          'flex w-full items-center gap-4 border-b border-border px-5 py-4 text-left transition-colors hover:bg-muted/50',
+                          idx === filteredContents.length - 1 && 'border-b-0'
                         )}
-                      </div>
+                      >
+                        <span className="w-6 shrink-0 text-sm font-medium text-muted-foreground">
+                          {realIdx + 1}.
+                        </span>
 
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-                        {isCompleted ? (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500">
-                            <Check className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        ) : isInProgress ? (
-                          <div className="h-6 w-6 rounded-full border-2 border-yellow-400" />
-                        ) : (
-                          <Circle className="h-6 w-6 text-muted-foreground/40" />
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn('text-sm font-medium', isCompleted ? 'text-blue-500' : 'text-foreground')}>
+                            {content.title}
+                          </p>
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Icon className="h-3 w-3" /> {content.type}
+                          </p>
+                        </div>
+
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                          {isCompleted ? (
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500">
+                              <Check className="h-3.5 w-3.5 text-white" />
+                            </div>
+                          ) : isInProgress ? (
+                            <div className="h-6 w-6 rounded-full border-2 border-yellow-400" />
+                          ) : (
+                            <Circle className="h-6 w-6 text-muted-foreground/40" />
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -796,7 +797,7 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
           <div className="pb-8">
             <div className="mb-6 flex flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <span className="text-5xl font-bold text-foreground">{avgRating}</span>
+                <span className="text-5xl font-bold text-foreground">{avgRating.toFixed(1)}</span>
                 <div>
                   <Stars rating={Math.round(avgRating)} size={20} />
                   <p className="mt-1 text-sm text-muted-foreground">{reviews.length} reviews</p>
@@ -807,23 +808,8 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
               </Button>
             </div>
 
-            <div className="mb-4 flex flex-wrap gap-2">
-              <button onClick={() => setFilterStar(null)}
-                className={cn('rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                  filterStar === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted')}>
-                All
-              </button>
-              {[5, 4, 3, 2, 1].map((s) => (
-                <button key={s} onClick={() => setFilterStar(filterStar === s ? null : s)}
-                  className={cn('flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                    filterStar === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted')}>
-                  {s} <Star className="h-3 w-3 fill-current" />
-                </button>
-              ))}
-            </div>
-
             <div className="space-y-4">
-              {filteredReviews.map((review) => (
+              {reviews.map((review) => (
                 <motion.div key={review.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-xl border border-border bg-card p-5 shadow-sm">
                   <div className="mb-3 flex items-center gap-3">
@@ -841,11 +827,6 @@ export default function LearningPlayerPage({ params }: { params: Promise<{ id: s
                   {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
                 </motion.div>
               ))}
-              {filteredReviews.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-                  No reviews for this rating.
-                </div>
-              )}
             </div>
           </div>
         )}

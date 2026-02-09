@@ -12,8 +12,8 @@ import { Loader2 } from 'lucide-react';
  * such as after sign-in or on the home page for authenticated users.
  * 
  * Redirects:
- * - admin → /admin/courses
- * - instructor → /instructor/courses
+ * - admin → /admin/dashboard
+ * - instructor → /instructor/dashboard
  * - learner → /learner/my-courses
  */
 export function RoleRedirect() {
@@ -34,9 +34,9 @@ export function RoleRedirect() {
         // Determine target based on role
         let targetPath = '/learner/my-courses'; // default
         if (userRole === 'admin') {
-            targetPath = '/admin/courses';
+            targetPath = '/admin/dashboard';
         } else if (userRole === 'instructor') {
-            targetPath = '/instructor/courses';
+            targetPath = '/instructor/dashboard';
         }
 
         setHasRedirected(true);
@@ -78,10 +78,10 @@ export function RoleRedirectPage() {
         let roleLabel = 'Learner Dashboard';
 
         if (userRole === 'admin') {
-            targetPath = '/admin/courses';
+            targetPath = '/admin/dashboard';
             roleLabel = 'Admin Dashboard';
         } else if (userRole === 'instructor') {
-            targetPath = '/instructor/courses';
+            targetPath = '/instructor/dashboard';
             roleLabel = 'Instructor Dashboard';
         }
 

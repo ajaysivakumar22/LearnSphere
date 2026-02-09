@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, LayoutGrid, List, X, Tag, Eye, FileText, Clock, Edit, Share2, Copy, Check, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCourseStore, type Course } from '@/lib/course-store';
+import { useCourseAPI, type Course } from '@/lib/course-api-context';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
 import { Input } from '@/components/shared/input';
@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/shared/dialog';
+import { useAuth } from '@/lib/auth-context';
 
 const DEFAULT_TAGS = [
   'AI', 'Automation', 'CRM', 'Sales', 'Odoo', 'eLearning',
@@ -24,7 +25,8 @@ const DEFAULT_TAGS = [
 ];
 
 export default function InstructorCoursesPage() {
-  const { courses, addCourse, removeTag, togglePublish } = useCourseStore();
+  const { courses, createCourse, updateCourse, togglePublish, loading } = useCourseAPI();
+  const { userId, userName } = useAuth();
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -41,8 +43,10 @@ export default function InstructorCoursesPage() {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Instructor can only see courses they created (or all published ones for viewing)
-  const instructorCourses = courses;
+  // Instructor can only see courses they created OR are assigned to
+  const instructorCourses = courses.filter(c =>
+    c.createdBy === userId || (c.assignedInstructor && c.assignedInstructor === userName)
+  );
 
   const filtered = instructorCourses.filter((c) => {
     const matchesSearch =
@@ -66,22 +70,19 @@ export default function InstructorCoursesPage() {
     setCustomTagInput('');
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    addCourse({
-      title: newTitle.trim(),
-      tags: [],
-      viewsCount: 0,
-      contentsCount: 0,
-      duration: '0:00',
-      isPublished: false,
-      description: '',
-      lessons: 0,
-      rating: 0,
-      createdBy: 'instructor',
-    });
+    await createCourse(newTitle.trim(), '', [], undefined, undefined);
     setNewTitle('');
     setShowCreateDialog(false);
+  };
+
+  const removeTag = async (courseId: string, tag: string) => {
+    const course = courses.find(c => c.id === courseId);
+    if (course) {
+      const newTags = course.tags.filter(t => t !== tag);
+      await updateCourse(courseId, { tags: newTags });
+    }
   };
 
   const handleShare = (course: Course) => {
@@ -302,12 +303,16 @@ export default function InstructorCoursesPage() {
           </div>
         )}
 
-        {filtered.length === 0 && (
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="mt-8 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
             <p className="text-lg text-muted-foreground">No courses found.</p>
             <p className="text-sm text-muted-foreground">Try adjusting your search or create a new course.</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* FAB */}

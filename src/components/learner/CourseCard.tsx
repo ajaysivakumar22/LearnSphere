@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
-import { CheckCircle, Lock, Play, ArrowRight, Info } from 'lucide-react';
+import { CheckCircle, Lock, Play, ArrowRight, Loader2 } from 'lucide-react';
 
 interface CourseCardProps {
   course: {
@@ -22,17 +24,43 @@ interface CourseCardProps {
 }
 
 export default function CourseCard({ course }: CourseCardProps) {
-  // Check if this is a paid course that hasn't been purchased/enrolled
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const isPaidAndNotEnrolled = course.isPaid && course.status === 'not_started';
 
+  const handlePurchase = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseId: course.id,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Checkout failed');
+
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('Purchase failed', error);
+      setIsLoading(false);
+    }
+  };
+
   const getButtonContent = () => {
-    // For paid courses that aren't enrolled, show demo mode message
     if (isPaidAndNotEnrolled) {
       return {
-        label: 'Demo Mode — Payment Disabled',
-        icon: <Lock className="mr-2 h-4 w-4" />,
-        variant: 'outline' as const,
-        disabled: true,
+        label: `Unlock for ₹${course.price || 500}`,
+        icon: isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />,
+        variant: 'default' as const,
+        disabled: isLoading,
+        onClick: handlePurchase,
       };
     }
     if (course.status === 'completed') {
@@ -41,21 +69,24 @@ export default function CourseCard({ course }: CourseCardProps) {
         icon: <CheckCircle className="mr-2 h-4 w-4" />,
         variant: 'outline' as const,
         disabled: false,
+        onClick: null,
       };
     }
     if (course.status === 'in_progress') {
       return {
         label: 'Continue',
         icon: <Play className="mr-2 h-4 w-4" />,
-        variant: 'odoo' as const,
+        variant: 'odoo' as const, // Custom variant
         disabled: false,
+        onClick: null,
       };
     }
     return {
       label: 'Join Course',
       icon: <ArrowRight className="mr-2 h-4 w-4" />,
-      variant: 'odoo' as const,
+      variant: 'odoo' as const, // Custom variant
       disabled: false,
+      onClick: null,
     };
   };
 
@@ -96,19 +127,6 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
         )}
 
-        {/* Demo mode notice for paid courses */}
-        {isPaidAndNotEnrolled && (
-          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div className="text-xs text-amber-700 dark:text-amber-300">
-              <span className="font-semibold">Premium Course (₹{course.price ?? 500})</span>
-              <p className="mt-0.5 text-amber-600 dark:text-amber-400">
-                Payment integration coming soon. This course will be available for purchase in a future update.
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Progress bar for in-progress courses */}
         {course.status === 'in_progress' && (
           <div className="mb-4">
@@ -128,9 +146,14 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
         )}
 
-        {/* CTA Button - disabled for paid courses, wrapped in Link for others */}
+        {/* CTA Button */}
         {isPaidAndNotEnrolled ? (
-          <Button variant={btn.variant} className="w-full cursor-not-allowed opacity-70" disabled>
+          <Button
+            variant={btn.variant}
+            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 border-none shadow-md hover:shadow-lg transition-all"
+            disabled={btn.disabled}
+            onClick={btn.onClick || undefined}
+          >
             {btn.icon}
             {btn.label}
           </Button>

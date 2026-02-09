@@ -1,7 +1,5 @@
-'use client';
-
-import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useContentStore } from '@/lib/content-store';
 
 const courseAdmins = [
   'Ajay Sivakumar',
@@ -12,17 +10,13 @@ const courseAdmins = [
 ];
 
 export default function OptionsTab({ courseId }: { courseId: string }) {
-  const [showCourseTo, setShowCourseTo] = useState<'everyone' | 'signed_in'>('everyone');
-  const [accessRules, setAccessRules] = useState<{ open: boolean; invitation: boolean; payment: boolean }>({
-    open: true,
-    invitation: false,
-    payment: false,
-  });
-  const [price, setPrice] = useState('500');
-  const [courseAdmin, setCourseAdmin] = useState('');
+  const { getContent, setOptions } = useContentStore();
+  const { options } = getContent(courseId);
 
   const toggleRule = (rule: 'open' | 'invitation' | 'payment') => {
-    setAccessRules((prev) => ({ ...prev, [rule]: !prev[rule] }));
+    if (rule === 'open') setOptions(courseId, { isOpen: !options.isOpen });
+    if (rule === 'invitation') setOptions(courseId, { isInvitation: !options.isInvitation });
+    if (rule === 'payment') setOptions(courseId, { isPaid: !options.isPaid });
   };
 
   return (
@@ -38,8 +32,8 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
               Show course to:
             </label>
             <select
-              value={showCourseTo}
-              onChange={(e) => setShowCourseTo(e.target.value as 'everyone' | 'signed_in')}
+              value={options.showCourseTo}
+              onChange={(e) => setOptions(courseId, { showCourseTo: e.target.value as 'everyone' | 'signed_in' })}
               className="w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             >
               <option value="everyone">Everyone</option>
@@ -60,7 +54,7 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={accessRules.open}
+                  checked={options.isOpen}
                   onChange={() => toggleRule('open')}
                   className="accent-primary"
                 />
@@ -71,7 +65,7 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={accessRules.invitation}
+                  checked={options.isInvitation}
                   onChange={() => toggleRule('invitation')}
                   className="accent-primary"
                 />
@@ -82,7 +76,7 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={accessRules.payment}
+                  checked={options.isPaid}
                   onChange={() => toggleRule('payment')}
                   className="accent-primary"
                 />
@@ -95,7 +89,7 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
 
             {/* Price field (shown only when On Payment is checked) */}
             <AnimatePresence>
-              {accessRules.payment && (
+              {options.isPaid && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -108,8 +102,8 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">₹</span>
                       <input
                         type="number"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
+                        value={options.price}
+                        onChange={(e) => setOptions(courseId, { price: Number(e.target.value) })}
                         placeholder="0"
                         className="w-32 rounded-md border border-gray-300 py-2 pl-7 pr-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                       />
@@ -133,8 +127,8 @@ export default function OptionsTab({ courseId }: { courseId: string }) {
               Course Admin:
             </label>
             <select
-              value={courseAdmin}
-              onChange={(e) => setCourseAdmin(e.target.value)}
+              value={options.assignedInstructor || ''}
+              onChange={(e) => setOptions(courseId, { assignedInstructor: e.target.value })}
               className="w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             >
               <option value="">Select admin...</option>

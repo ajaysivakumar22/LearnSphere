@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, LogOut, Loader2 } from 'lucide-react';
+import { GraduationCap, LogOut, Loader2, Sun, Moon, Monitor, LayoutDashboard, BookOpen, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 import { CourseAPIProvider } from '@/lib/course-api-context';
+import { ContentStoreProvider } from '@/lib/content-store';
 import {
   Dialog,
   DialogContent,
@@ -18,21 +20,36 @@ import {
 import { Button } from '@/components/shared/button';
 
 const navItems = [
-  { href: '/admin/courses', label: 'Courses' },
-  { href: '/admin/reports', label: 'Reporting' },
-  { href: '/admin/settings', label: 'Settings' },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/courses', label: 'Courses', icon: BookOpen },
+  { href: '/admin/reports', label: 'Reporting', icon: BarChart3 },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, isLoggedIn, isLoaded, userRole } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleLogout = () => {
     logout();
     router.push('/');
+  };
+
+  // Cycle through themes
+  const cycleTheme = () => {
+    if (theme === 'light') setTheme('dark');
+    else if (theme === 'dark') setTheme('system');
+    else setTheme('light');
+  };
+
+  const getThemeIcon = () => {
+    if (theme === 'light') return <Sun className="h-4 w-4" />;
+    if (theme === 'dark') return <Moon className="h-4 w-4" />;
+    return <Monitor className="h-4 w-4" />;
   };
 
   // Determine authorization status
@@ -76,8 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
         <div className="flex h-14 items-center px-6">
-          {/* Logo — goes to admin courses (dashboard), NOT login */}
-          <Link href="/admin/courses" className="mr-8 flex items-center gap-2">
+          {/* Logo — goes to admin dashboard */}
+          <Link href="/admin/dashboard" className="mr-8 flex items-center gap-2">
             <GraduationCap className="h-7 w-7 text-primary" />
             <span className="text-lg font-bold text-foreground">LearnSphere</span>
           </Link>
@@ -85,6 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Nav Tabs */}
           <nav className="flex h-full items-center gap-1">
             {navItems.map((item) => {
+              const Icon = item.icon;
               const isActive =
                 pathname === item.href || pathname.startsWith(item.href + '/');
               return (
@@ -92,12 +110,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'relative flex h-14 items-center px-4 text-sm font-medium transition-colors',
+                    'relative flex h-14 items-center gap-2 px-4 text-sm font-medium transition-colors',
                     isActive
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
+                  <Icon className="h-4 w-4" />
                   {item.label}
                   {isActive && (
                     <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
@@ -109,6 +128,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-3">
+            {/* Learner Mode Toggle */}
+            <Link
+              href="/learner/explore"
+              className="flex items-center gap-1.5 rounded-md bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:scale-105 hover:shadow-md"
+              title="Switch to Learner Mode"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Learner Mode</span>
+            </Link>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={cycleTheme}
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title={`Theme: ${theme} (click to change)`}
+            >
+              {getThemeIcon()}
+              <span className="hidden sm:inline capitalize">{theme}</span>
+            </button>
+
+            {/* Logout */}
             <button
               onClick={() => setShowLogoutDialog(true)}
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-red-600"
@@ -142,7 +182,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Content */}
       <main className="flex-1">
         <CourseAPIProvider>
-          {children}
+          <ContentStoreProvider>
+            {children}
+          </ContentStoreProvider>
         </CourseAPIProvider>
       </main>
     </div>

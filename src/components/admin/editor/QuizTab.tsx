@@ -7,6 +7,8 @@ import { Input } from '@/components/shared/input';
 import { Label } from '@/components/shared/label';
 import { cn } from '@/lib/utils';
 
+import { useContentStore } from '@/lib/content-store';
+
 interface Question {
   id: string;
   question: string;
@@ -14,12 +16,21 @@ interface Question {
   correctAnswer: number;
 }
 
-const sampleQuestions: Question[] = [];
-
 type View = 'question' | 'rewards';
 
 export default function QuizTab({ courseId }: { courseId: string }) {
-  const [questions, setQuestions] = useState<Question[]>(sampleQuestions);
+  const { getContent, setQuizQuestions } = useContentStore();
+  const { quizQuestions } = getContent(courseId);
+
+  // Map store questions to local format (if needed, or just use store format)
+  // Store uses correctIndex, this component uses correctAnswer. 
+  const questions: Question[] = quizQuestions.map(q => ({
+    id: q.id,
+    question: q.question,
+    options: q.options,
+    correctAnswer: q.correctIndex,
+  }));
+
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<View>('question');
 
@@ -29,13 +40,23 @@ export default function QuizTab({ courseId }: { courseId: string }) {
   const [newOptions, setNewOptions] = useState(['', '', '', '']);
   const [newCorrectAnswer, setNewCorrectAnswer] = useState(0);
 
-  // Rewards
+  // Rewards (Local state for now)
   const [firstTryPts, setFirstTryPts] = useState(10);
   const [secondTryPts, setSecondTryPts] = useState(7);
   const [thirdTryPts, setThirdTryPts] = useState(5);
   const [fourthTryPts, setFourthTryPts] = useState(2);
 
   const selectedQuestion = questions.find((q) => q.id === selectedQuestionId) ?? null;
+
+  const updateStore = (updatedQuestions: Question[]) => {
+    setQuizQuestions(courseId, updatedQuestions.map(q => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctAnswer,
+      points: 10 // Default points
+    })));
+  };
 
   const addQuestion = () => {
     if (!newQuestion.trim() || newOptions.some((o) => !o.trim())) return;
@@ -45,7 +66,9 @@ export default function QuizTab({ courseId }: { courseId: string }) {
       options: newOptions,
       correctAnswer: newCorrectAnswer,
     };
-    setQuestions([...questions, q]);
+
+    updateStore([...questions, q]);
+
     setSelectedQuestionId(q.id);
     setActiveView('question');
     setNewQuestion('');
@@ -56,7 +79,7 @@ export default function QuizTab({ courseId }: { courseId: string }) {
 
   const removeQuestion = (id: string) => {
     const updated = questions.filter((q) => q.id !== id);
-    setQuestions(updated);
+    updateStore(updated);
     if (selectedQuestionId === id) {
       setSelectedQuestionId(updated[0]?.id ?? null);
     }

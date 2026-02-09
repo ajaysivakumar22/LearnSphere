@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Share2, Edit, ExternalLink, Copy, Check, Trash2, Loader2 } from 'lucide-react';
+import { X, Share2, Edit, ExternalLink, Copy, Check, Trash2, Loader2, Eye, FileText, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/button';
 import Link from 'next/link';
 import {
@@ -92,112 +93,129 @@ export default function CourseKanban({ searchQuery, selectedTags = [] }: { searc
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((course, index) => (
           <motion.div
             key={course.id}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04 }}
-            className="group relative overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md"
+            className="group overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-lg dark:border-border"
           >
-            <div className="flex items-center gap-6 p-5">
-              {/* Left: Name + Tags */}
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-semibold text-primary">
-                  {course.title}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(course.tags || []).map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 rounded bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+            {/* Card Header / Image Area */}
+            <div className="relative h-36 overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30">
+              {course.imageUrl ? (
+                <img
+                  key={course.imageUrl}
+                  src={course.imageUrl}
+                  alt={course.title}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-purple-300/50">
+                  {course.title.charAt(0).toUpperCase()}
                 </div>
-              </div>
+              )}
 
-              {/* Middle: Stats */}
-              <div className="hidden shrink-0 sm:block">
-                <table className="text-sm">
-                  <tbody>
-                    <tr>
-                      <td className="pr-4 text-muted-foreground">Views</td>
-                      <td className="font-medium text-foreground">{course.viewsCount || 0}</td>
-                    </tr>
-                    <tr>
-                      <td className="pr-4 text-muted-foreground">Contents</td>
-                      <td className="font-medium text-foreground">{course.contentsCount || 0}</td>
-                    </tr>
-                    <tr>
-                      <td className="pr-4 text-muted-foreground">Duration</td>
-                      <td className="font-medium text-foreground">{course.duration || '0:00'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Actions */}
-              <div className="flex shrink-0 flex-col gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="min-w-[80px]"
-                  onClick={() => handleShare(course)}
-                >
-                  <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                  Share
-                </Button>
-                <Link href={`/admin/courses/${course.id}/edit`}>
-                  <Button variant="outline" size="sm" className="min-w-[80px] w-full">
-                    <Edit className="mr-1.5 h-3.5 w-3.5" />
-                    Edit
-                  </Button>
-                </Link>
-                <Button
-                  variant={course.isPublished ? 'outline' : 'default'}
-                  size="sm"
-                  className="min-w-[80px]"
-                  onClick={() => handleTogglePublish(course.id)}
-                  disabled={publishing === course.id}
-                >
-                  {publishing === course.id ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : null}
-                  {course.isPublished ? 'Unpublish' : 'Publish'}
-                </Button>
-                {/* Delete button - Admin only */}
-                {isAdmin && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="min-w-[80px]"
-                    onClick={() => handleDeleteClick(course)}
-                  >
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                    Delete
-                  </Button>
-                )}
-              </div>
-
-              {/* Published Ribbon */}
+              {/* Ribbon Status */}
               {course.isPublished ? (
-                <div className="absolute -right-10 top-5 rotate-45 bg-green-500 px-12 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow">
+                <div className="absolute -right-8 top-4 rotate-45 bg-green-500 px-10 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md">
                   Published
                 </div>
               ) : (
-                <div className="absolute -right-10 top-5 rotate-45 bg-gray-400 px-12 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow">
+                <div className="absolute -right-8 top-4 rotate-45 bg-gray-400 px-10 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-md">
                   Draft
                 </div>
               )}
+            </div>
+
+            {/* Content Body */}
+            <div className="flex flex-col p-5">
+              <h3 className="mb-2 line-clamp-1 text-base font-bold text-foreground" title={course.title}>
+                {course.title}
+              </h3>
+
+              {/* Tags */}
+              <div className="mb-4 flex flex-wrap gap-1.5 h-6 overflow-hidden">
+                {(course.tags || []).slice(0, 3).map((tag) => (
+                  <span key={tag} className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">
+                    {tag}
+                  </span>
+                ))}
+                {(course.tags || []).length > 3 && (
+                  <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">+{course.tags.length - 3}</span>
+                )}
+              </div>
+
+              {/* Stats Grid */}
+              <div className="mb-4 grid grid-cols-3 gap-2 border-y py-3 text-xs text-muted-foreground">
+                <div className="flex flex-col items-center gap-1">
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>{course.viewsCount || 0}</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 border-x px-2">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{course.contentsCount || 0} lessons</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{course.duration || '0:00'}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <Link href={`/admin/courses/${course.id}/edit`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full gap-1.5 border-primary/20 text-primary hover:bg-primary/5 hover:text-primary">
+                    <Edit className="h-3.5 w-3.5" /> Edit
+                  </Button>
+                </Link>
+
+                <Button variant="ghost" size="sm" className="h-8 w-8 px-0 text-muted-foreground hover:text-foreground" onClick={() => handleShare(course)} title="Share">
+                  <Share2 className="h-3.5 w-3.5" />
+                </Button>
+
+                {/* Publish Toggle */}
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-8 px-2 text-xs",
+                      course.isPublished ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => handleTogglePublish(course.id)}
+                    disabled={publishing === course.id}
+                    title={course.isPublished ? "Unpublish" : "Publish"}
+                  >
+                    {publishing === course.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : course.isPublished ? (
+                      <span className="flex items-center gap-1 font-bold">PUB</span>
+                    ) : (
+                      <span className="flex items-center gap-1">DRAFT</span>
+                    )}
+                  </Button>
+                )}
+
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 px-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDeleteClick(course)}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </motion.div>
         ))}
 
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
+          <div className="col-span-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center">
             <p className="text-lg text-muted-foreground">No courses found</p>
             <p className="text-sm text-muted-foreground">
               Try adjusting your search or create a new course

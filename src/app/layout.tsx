@@ -6,6 +6,8 @@ import { Toaster } from '@/components/shared/toaster'
 import { ThemeProvider } from '@/lib/theme-context'
 import { AuthProvider } from '@/lib/auth-context'
 import { CourseStoreProvider } from '@/lib/course-store'
+import { APICacheProvider } from '@/lib/api-cache'
+import { PrefetchCommonRoutes } from '@/lib/prefetch'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,16 +25,20 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ClerkProviderWrapper>
-          <ThemeProvider>
-            <AuthProvider>
-              <CourseStoreProvider>
-                {children}
-                <Toaster />
-              </CourseStoreProvider>
-            </AuthProvider>
-          </ThemeProvider>
+          <APICacheProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <CourseStoreProvider>
+                  {children}
+                  <Toaster />
+                  <PrefetchCommonRoutes />
+                </CourseStoreProvider>
+              </AuthProvider>
+            </ThemeProvider>
+          </APICacheProvider>
         </ClerkProviderWrapper>
       </body>
     </html>
   )
 }
+

@@ -125,12 +125,7 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (user.role !== 'learner') {
-      return NextResponse.json(
-        { error: 'Only learners can enroll in courses' },
-        { status: 403 },
-      );
-    }
+    // All authenticated users can enroll in courses
 
     const body = await request.json();
     const { courseId } = body;
