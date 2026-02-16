@@ -30,7 +30,8 @@ export default function CourseList({ searchQuery, selectedTags = [] }: { searchQ
 
   const isAdmin = userRole === 'admin';
 
-  const filtered = courses.filter((c) => {
+  const safeCourses = Array.isArray(courses) ? courses : [];
+  const filtered = safeCourses.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.tags || []).some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));

@@ -130,7 +130,7 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>

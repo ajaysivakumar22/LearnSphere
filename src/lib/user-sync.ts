@@ -81,11 +81,25 @@ export async function getOrCreateUserFromClerk(): Promise<SyncedUser | null> {
   const { rows: inserted } = await query<SyncedUser>(
     `INSERT INTO users (email, name, role, total_points, badge_level)
      VALUES ($1, $2, 'learner', 0, 'Newbie')
+     ON CONFLICT (email) DO NOTHING
      RETURNING id, email, name, role, 
                total_points AS "totalPoints", 
                badge_level AS "badgeLevel"`,
     [email, name],
   );
 
-  return inserted[0];
+  if (inserted.length > 0) {
+    return inserted[0];
+  }
+
+  // 5. Fallback: If INSERT failed due to conflict (race condition), fetch the record again
+  const { rows: retry } = await query<SyncedUser>(
+    `SELECT id, email, name, role, 
+            total_points AS "totalPoints", 
+            badge_level AS "badgeLevel" 
+     FROM users WHERE email = $1`,
+    [email],
+  );
+
+  return retry[0] || null;
 }

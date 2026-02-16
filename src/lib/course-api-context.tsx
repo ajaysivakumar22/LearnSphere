@@ -91,11 +91,13 @@ export function CourseAPIProvider({ children }: { children: React.ReactNode }) {
             const data = await fetchWithCache<Course[]>(
                 CACHE_KEYS.COURSES,
                 async () => {
-                    const res = await fetch('/api/courses');
+                    const res = await fetch('/api/courses?limit=100'); // Fetch reasonably large set for now
                     if (!res.ok) {
                         throw new Error('Failed to fetch courses');
                     }
-                    return res.json();
+                    // Handle both legacy array and new paginated response
+                    const json = await res.json();
+                    return Array.isArray(json) ? json : json.data;
                 },
                 { forceRefresh, ttlMs: 30_000 } // 30 second cache
             );
@@ -118,9 +120,10 @@ export function CourseAPIProvider({ children }: { children: React.ReactNode }) {
             fetchWithCache<Course[]>(
                 CACHE_KEYS.COURSES,
                 async () => {
-                    const res = await fetch('/api/courses');
+                    const res = await fetch('/api/courses?limit=100');
                     if (!res.ok) throw new Error('Failed to fetch');
-                    return res.json();
+                    const json = await res.json();
+                    return Array.isArray(json) ? json : json.data;
                 },
                 { ttlMs: 30_000 }
             ).then(data => {

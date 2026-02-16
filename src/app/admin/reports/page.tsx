@@ -69,7 +69,8 @@ export default function AdminReportsPage() {
         // Fetch courses
         const coursesRes = await fetch('/api/courses');
         if (!coursesRes.ok) throw new Error('Failed to fetch courses');
-        const coursesData: CourseFromAPI[] = await coursesRes.json();
+        const json = await coursesRes.json();
+        const coursesData: CourseFromAPI[] = Array.isArray(json) ? json : (json.data || []);
 
         // Fetch enrollment stats for each course
         const reportsRes = await fetch('/api/reports/courses');

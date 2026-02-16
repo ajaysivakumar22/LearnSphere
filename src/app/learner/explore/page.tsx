@@ -42,7 +42,8 @@ export default function ExplorePage() {
     async () => {
       const res = await fetch('/api/courses');
       if (!res.ok) throw new Error('Failed to fetch courses');
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data;
     },
     { ttlMs: 30_000, staleWhileRevalidate: true }
   );
@@ -72,10 +73,16 @@ export default function ExplorePage() {
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null);
 
   // Only show published courses - memoized for performance
-  const publishedCourses = useMemo(() =>
-    (courses || []).filter((c) => c.isPublished),
-    [courses]
-  );
+  const publishedCourses = useMemo<Course[]>(() => {
+    // Handle both array (legacy) and object response (paginated)
+    // Cast to unknown first to avoid TS errors if types conflict, then safely extract data
+    const raw = courses as unknown;
+    const list: Course[] = Array.isArray(raw)
+      ? (raw as Course[])
+      : (raw as { data: Course[] })?.data || [];
+
+    return list.filter((c) => c.isPublished);
+  }, [courses]);
 
   const allTags = useMemo(() =>
     Array.from(new Set(publishedCourses.flatMap((c) => c.tags || []))),

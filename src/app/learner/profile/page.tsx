@@ -181,7 +181,7 @@ export default function ProfilePage() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
+    <div className="p-6">
       {/* Sticky Navigation Bar */}
       <div className="sticky top-20 z-30 mb-8 border-b bg-card shadow-sm">
         <button

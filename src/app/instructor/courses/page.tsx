@@ -1,22 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, List, X, Tag, Eye, FileText, Clock, Edit, Share2, Copy, Check, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Search, LayoutGrid, List, X, Tag, Eye, FileText, Clock, Edit, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCourseAPI, type Course } from '@/lib/course-api-context';
 import { Button } from '@/components/shared/button';
 import { Badge } from '@/components/shared/badge';
-import { Input } from '@/components/shared/input';
 import Link from 'next/link';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/shared/dialog';
 import { useAuth } from '@/lib/auth-context';
+import { CreateCourseDialog } from '@/components/instructor/CreateCourseDialog';
+import { ShareCourseDialog } from '@/components/instructor/ShareCourseDialog';
 
 const DEFAULT_TAGS = [
   'AI', 'Automation', 'CRM', 'Sales', 'Odoo', 'eLearning',
@@ -25,7 +18,7 @@ const DEFAULT_TAGS = [
 ];
 
 export default function InstructorCoursesPage() {
-  const { courses, createCourse, updateCourse, togglePublish, loading } = useCourseAPI();
+  const { courses, createCourse, updateCourse, loading } = useCourseAPI();
   const { userId, userName } = useAuth();
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,14 +27,9 @@ export default function InstructorCoursesPage() {
   const [availableTags, setAvailableTags] = useState(DEFAULT_TAGS);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // Create dialog
+  // Dialog states
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-
-  // Share dialog
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [shareDialogCourse, setShareDialogCourse] = useState<Course | null>(null);
 
   // Instructor can only see courses they created OR are assigned to
   const instructorCourses = courses.filter(c =>
@@ -70,10 +58,8 @@ export default function InstructorCoursesPage() {
     setCustomTagInput('');
   };
 
-  const handleCreate = async () => {
-    if (!newTitle.trim()) return;
-    await createCourse(newTitle.trim(), '', []);
-    setNewTitle('');
+  const handleCreate = async (title: string) => {
+    await createCourse(title, '', []);
     setShowCreateDialog(false);
   };
 
@@ -83,18 +69,6 @@ export default function InstructorCoursesPage() {
       const newTags = course.tags.filter(t => t !== tag);
       await updateCourse(courseId, { tags: newTags });
     }
-  };
-
-  const handleShare = (course: Course) => {
-    setShareUrl(`${window.location.origin}/courses/${course.id}`);
-    setCopied(false);
-    setShareDialogOpen(true);
-  };
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -244,7 +218,7 @@ export default function InstructorCoursesPage() {
                         <Edit className="h-3 w-3" /> Edit
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" onClick={() => handleShare(course)}>
+                    <Button variant="ghost" size="sm" onClick={() => setShareDialogCourse(course)}>
                       <Share2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -291,7 +265,7 @@ export default function InstructorCoursesPage() {
                         <Link href={`/instructor/courses/${course.id}/edit`}>
                           <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
                         </Link>
-                        <Button variant="ghost" size="sm" onClick={() => handleShare(course)}>
+                        <Button variant="ghost" size="sm" onClick={() => setShareDialogCourse(course)}>
                           <Share2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -315,7 +289,7 @@ export default function InstructorCoursesPage() {
         ) : null}
       </div>
 
-      {/* FAB */}
+      {/* FAB - Create Course Trigger */}
       <button
         onClick={() => setShowCreateDialog(true)}
         className="fixed bottom-8 left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:scale-110 hover:bg-primary/90 hover:shadow-xl active:scale-95"
@@ -324,46 +298,18 @@ export default function InstructorCoursesPage() {
         <Plus className="h-7 w-7" />
       </button>
 
-      {/* Create Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Create Course</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Provide a name.. (Eg: Basics of Odoo CRM)"
-              className="text-sm" autoFocus
-              onKeyDown={(e) => { if (e.key === 'Enter' && newTitle.trim()) handleCreate(); }} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-            <Button variant="odoo" onClick={handleCreate} disabled={!newTitle.trim()}>Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Reusable Dialogs */}
+      <CreateCourseDialog
+        isOpen={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onCreate={handleCreate}
+      />
 
-      {/* Share Dialog */}
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Share2 className="h-5 w-5" /> Share Course</DialogTitle>
-            <DialogDescription>Share this course link with others.</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2 py-4">
-            <Input value={shareUrl} readOnly className="flex-1 text-sm" />
-            <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
-              {copied ? <><Check className="h-4 w-4 text-green-500" /> Copied</> : <><Copy className="h-4 w-4" /> Copy</>}
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>Close</Button>
-            <Button variant="odoo" onClick={() => window.open(shareUrl, '_blank')} className="gap-1.5">
-              <ExternalLink className="h-4 w-4" /> Open
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShareCourseDialog
+        isOpen={!!shareDialogCourse}
+        onClose={() => setShareDialogCourse(null)}
+        course={shareDialogCourse}
+      />
     </div>
   );
 }
